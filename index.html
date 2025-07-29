@@ -3166,8 +3166,8 @@ async function generateHistoryFromCurrentData() {
     // Obtener datos de verificaciones pasadas desde las observaciones
     const { data, error } = await supabaseClient
         .from(TABLE_NAME)
-        .select('id,ppu,conectividad,observacion,updated_at')
-        .order('updated_at', { ascending: false });
+        .select('id,ppu,conectividad,observacion,created_at')
+        .order('created_at', { ascending: false });
         
     if (error || !data) {
         console.error('No se pudieron generar datos históricos:', error);
@@ -3184,7 +3184,7 @@ async function generateHistoryFromCurrentData() {
         
         // Agregar estado actual
         history[bus.id].push({
-            date: bus.updated_at || new Date().toISOString(),
+            date: bus.created_at || new Date().toISOString(),
             status: bus.conectividad === 'Si'
         });
         
@@ -3249,8 +3249,7 @@ async function updateBus(busData) {
         if (updateData[key] === undefined) delete updateData[key];
     });
     
-    // Agregar timestamp de actualización
-    updateData.updated_at = new Date().toISOString();
+    // El timestamp de actualización se maneja automáticamente por Supabase
     
     try {
         const { error } = await supabaseClient
