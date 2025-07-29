@@ -2152,6 +2152,18 @@
             align-items: center;
         }
         
+        /* GPS Refresh Button */
+        #geo-status .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            border-radius: var(--border-radius-sm);
+        }
+        
+        #geo-status .btn:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
         /* Hover Effects */
         .hover-lift {
             transition: var(--transition-normal);
@@ -3097,22 +3109,11 @@
             ...bus,
             chipInstalado: bus.chipInstalado || 'No',
             conectividad: bus.conectividad || 'No',
-            observacion: bus.observacion || '',
-            // Calculate location based on terminal
-            location: getLocationFromTerminal(bus.terminal)
+            observacion: bus.observacion || ''
         }));
     }
 
-    function getLocationFromTerminal(terminalName) {
-        if (!terminalName || !TERMINALS[terminalName]) return null;
-        
-        const terminal = TERMINALS[terminalName];
-        // Use exact terminal location for buses
-        return {
-            lat: terminal.lat,
-            lon: terminal.lon
-        };
-    }
+
 
     async function updateBus(busData) {
         const { id, ...updateData } = busData;
@@ -3135,11 +3136,28 @@
         // Initial status update
         dom.geoStatusText.textContent = 'Obteniendo ubicación de alta precisión...';
         
-        navigator.geolocation.watchPosition(handleLocationSuccess, handleLocationError, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 30000
-        });
+        // First, try to get a high-accuracy position
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                if (position.coords.accuracy <= 10) {
+                    handleLocationSuccess(position);
+                } else {
+                    // If accuracy is not good enough, start watching with stricter options
+                    dom.geoStatusText.textContent = 'Mejorando precisión GPS...';
+                    navigator.geolocation.watchPosition(handleLocationSuccess, handleLocationError, {
+                        enableHighAccuracy: true,
+                        timeout: 30000,
+                        maximumAge: 0
+                    });
+                }
+            },
+            handleLocationError,
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            }
+        );
     }
 
     function handleLocationSuccess(position) {
@@ -3152,11 +3170,24 @@
         
         // Update status with accuracy info
         if (accuracy <= 10) {
-            dom.geoStatusText.textContent = `GPS Alta Precisión (±${accuracy.toFixed(0)}m)`;
-        } else if (accuracy <= 50) {
+            dom.geoStatusText.textContent = `GPS Excelente (±${accuracy.toFixed(0)}m)`;
+            showToast(`Precisión GPS excelente: ±${accuracy.toFixed(0)}m`, 'success');
+        } else if (accuracy <= 20) {
             dom.geoStatusText.textContent = `GPS Buena (±${accuracy.toFixed(0)}m)`;
+            showToast(`Precisión GPS buena: ±${accuracy.toFixed(0)}m`, 'info');
+        } else if (accuracy <= 50) {
+            dom.geoStatusText.textContent = `GPS Regular (±${accuracy.toFixed(0)}m)`;
+            showToast(`Precisión GPS regular: ±${accuracy.toFixed(0)}m. Mueva el dispositivo para mejorar la precisión.`, 'warning');
         } else {
             dom.geoStatusText.textContent = `GPS Baja (±${accuracy.toFixed(0)}m)`;
+            showToast(`Precisión GPS baja: ±${accuracy.toFixed(0)}m. Salga al exterior para mejor señal GPS.`, 'warning');
+        }
+        
+        // Show GPS improvement tips for low accuracy
+        if (accuracy > 20) {
+            setTimeout(() => {
+                showToast('💡 Consejos para mejorar GPS: Salga al exterior, evite edificios altos, mantenga el dispositivo estable.', 'info');
+            }, 2000);
         }
         
         updateGeoStatus();
@@ -3189,7 +3220,9 @@
 
         dom.geoStatusText.textContent = `${nearestTerm} (${nearestDist.toFixed(0)}m)`;
         
-        const canVerify = nearestDist <= VERIFICATION_RADIUS_METERS;
+        // Check if GPS accuracy is good enough for verification
+        const gpsAccuracy = state.userLocation.accuracy || 100;
+        const canVerify = nearestDist <= VERIFICATION_RADIUS_METERS && gpsAccuracy <= 10;
         
         // Update verification section
         dom.verificationSection.terminal.textContent = nearestTerm || '--';
@@ -3204,9 +3237,16 @@
         } else {
             dom.verifyConnectionBtn.disabled = true;
             dom.verifyConnectionBtn.classList.add('disabled');
-            dom.verificationSection.statusText.textContent = 'No Disponible';
-            dom.verificationSection.statusText.className = 'font-semibold text-danger';
-            dom.verificationSection.distanceText.textContent = `Acérquese a una terminal para habilitar la verificación (distancia actual: ${nearestDist.toFixed(0)}m).`;
+            
+            if (gpsAccuracy > 10) {
+                dom.verificationSection.statusText.textContent = 'GPS Insuficiente';
+                dom.verificationSection.statusText.className = 'font-semibold text-warning';
+                dom.verificationSection.distanceText.textContent = `Mejore la precisión GPS (actual: ±${gpsAccuracy.toFixed(0)}m). Debe ser ≤10m.`;
+            } else {
+                dom.verificationSection.statusText.textContent = 'No Disponible';
+                dom.verificationSection.statusText.className = 'font-semibold text-danger';
+                dom.verificationSection.distanceText.textContent = `Acérquese a una terminal para habilitar la verificación (distancia actual: ${nearestDist.toFixed(0)}m).`;
+            }
         }
     }
 
@@ -3608,9 +3648,10 @@
         });
         state.maps.markers.buses = [];
         
-        // Only add markers for buses that are actually at terminals (not random locations)
+        // Only add markers for buses that are at terminals
         state.fleetData.forEach(bus => {
-            if (bus.location && bus.terminal) {
+            if (bus.terminal && TERMINALS[bus.terminal]) {
+                const terminal = TERMINALS[bus.terminal];
                 const statusColor = bus.conectividad === 'Si' ? 'primary' : 'gray-500';
                 
                 const dashboardIcon = L.divIcon({
@@ -3628,10 +3669,10 @@
                 });
                 
                 // Add to dashboard map
-                const dashboardMarker = L.marker([bus.location.lat, bus.location.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+                const dashboardMarker = L.marker([terminal.lat, terminal.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
                 
                 // Add to full map with interaction
-                const fullMarker = L.marker([bus.location.lat, bus.location.lon], { icon: fullMapIcon }).addTo(state.maps.full);
+                const fullMarker = L.marker([terminal.lat, terminal.lon], { icon: fullMapIcon }).addTo(state.maps.full);
                 fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
                 fullMarker.on('click', () => {
                     // Select bus and switch to management view
@@ -4431,8 +4472,9 @@
     function updateBusMarker(bus) {
         // Find existing marker
         const markerIndex = state.maps.markers.buses.findIndex(marker => marker.id === bus.id);
-        if (markerIndex !== -1 && bus.location) {
+        if (markerIndex !== -1 && bus.terminal && TERMINALS[bus.terminal]) {
             const marker = state.maps.markers.buses[markerIndex];
+            const terminal = TERMINALS[bus.terminal];
             
             // Update marker status
             if (marker.status !== bus.conectividad) {
@@ -4462,8 +4504,8 @@
                 });
                 
                 // Add to maps
-                const dashboardMarker = L.marker([bus.location.lat, bus.location.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
-                const fullMarker = L.marker([bus.location.lat, bus.location.lon], { icon: fullMapIcon }).addTo(state.maps.full);
+                const dashboardMarker = L.marker([terminal.lat, terminal.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+                const fullMarker = L.marker([terminal.lat, terminal.lon], { icon: fullMapIcon }).addTo(state.maps.full);
                 fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
                 fullMarker.on('click', () => {
                     selectBus(bus.id);
@@ -4694,6 +4736,22 @@
             document.body.classList.add('mobile-device');
             // Show mobile-specific instructions
             showToast('Modo móvil activado. Use la sección de Gestión para registrar información.', 'info');
+            
+            // Add GPS refresh button for mobile
+            const gpsRefreshBtn = document.createElement('button');
+            gpsRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            gpsRefreshBtn.className = 'btn btn-sm btn-outline ml-2';
+            gpsRefreshBtn.title = 'Actualizar GPS';
+            gpsRefreshBtn.onclick = () => {
+                dom.geoStatusText.textContent = 'Actualizando GPS...';
+                startWatchingLocation();
+            };
+            
+            // Add to geo status container
+            const geoStatusContainer = document.getElementById('geo-status');
+            if (geoStatusContainer) {
+                geoStatusContainer.appendChild(gpsRefreshBtn);
+            }
         }
         
         // Setup event listeners
