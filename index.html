@@ -1,0 +1,4646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Conectividad de Flota v3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <style>
+        /* RESET & BASE STYLES */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #dbeafe;
+            --primary-focus: #1d4ed8;
+            --secondary: #10b981;
+            --secondary-dark: #059669;
+            --secondary-light: #d1fae5;
+            --danger: #ef4444;
+            --danger-dark: #dc2626;
+            --danger-light: #fee2e2;
+            --warning: #f97316;
+            --warning-dark: #ea580c;
+            --warning-light: #ffedd5;
+            --info: #3b82f6;
+            --info-dark: #2563eb;
+            --info-light: #dbeafe;
+            --success: #10b981;
+            --success-dark: #059669;
+            --success-light: #d1fae5;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --border-radius-sm: 0.125rem;
+            --border-radius: 0.25rem;
+            --border-radius-md: 0.375rem;
+            --border-radius-lg: 0.5rem;
+            --border-radius-xl: 0.75rem;
+            --border-radius-2xl: 1rem;
+            --border-radius-full: 9999px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --transition-normal: all 0.3s ease;
+            --transition-fast: all 0.15s ease;
+            --transition-slow: all 0.5s ease;
+        }
+        
+        html {
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            background-color: var(--gray-50);
+            color: var(--gray-800);
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100%;
+            transition: var(--transition-normal);
+        }
+        
+        /* CUSTOM SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--gray-100);
+            border-radius: var(--border-radius);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: var(--border-radius);
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-400);
+        }
+        
+        /* TYPOGRAPHY */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 600;
+            line-height: 1.25;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+        
+        p {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .text-xs {
+            font-size: 0.75rem;
+        }
+        
+        .text-sm {
+            font-size: 0.875rem;
+        }
+        
+        .text-base {
+            font-size: 1rem;
+        }
+        
+        .text-lg {
+            font-size: 1.125rem;
+        }
+        
+        .text-xl {
+            font-size: 1.25rem;
+        }
+        
+        .text-2xl {
+            font-size: 1.5rem;
+        }
+        
+        .text-3xl {
+            font-size: 1.875rem;
+        }
+        
+        .font-light {
+            font-weight: 300;
+        }
+        
+        .font-normal {
+            font-weight: 400;
+        }
+        
+        .font-medium {
+            font-weight: 500;
+        }
+        
+        .font-semibold {
+            font-weight: 600;
+        }
+        
+        .font-bold {
+            font-weight: 700;
+        }
+        
+        /* LAYOUT COMPONENTS */
+        .container {
+            width: 100%;
+            margin-right: auto;
+            margin-left: auto;
+            padding-right: 1rem;
+            padding-left: 1rem;
+        }
+        
+        @media (min-width: 640px) {
+            .container {
+                max-width: 640px;
+                padding-right: 1.5rem;
+                padding-left: 1.5rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                max-width: 768px;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 1024px;
+            }
+        }
+        
+        @media (min-width: 1280px) {
+            .container {
+                max-width: 1280px;
+            }
+        }
+        
+        @media (min-width: 1536px) {
+            .container {
+                max-width: 1536px;
+            }
+        }
+        
+        .flex {
+            display: flex;
+        }
+        
+        .inline-flex {
+            display: inline-flex;
+        }
+        
+        .flex-col {
+            flex-direction: column;
+        }
+        
+        .flex-row {
+            flex-direction: row;
+        }
+        
+        .flex-wrap {
+            flex-wrap: wrap;
+        }
+        
+        .flex-nowrap {
+            flex-wrap: nowrap;
+        }
+        
+        .items-start {
+            align-items: flex-start;
+        }
+        
+        .items-center {
+            align-items: center;
+        }
+        
+        .items-end {
+            align-items: flex-end;
+        }
+        
+        .justify-start {
+            justify-content: flex-start;
+        }
+        
+        .justify-center {
+            justify-content: center;
+        }
+        
+        .justify-end {
+            justify-content: flex-end;
+        }
+        
+        .justify-between {
+            justify-content: space-between;
+        }
+        
+        .justify-around {
+            justify-content: space-around;
+        }
+        
+        .justify-evenly {
+            justify-content: space-evenly;
+        }
+        
+        .gap-1 {
+            gap: 0.25rem;
+        }
+        
+        .gap-2 {
+            gap: 0.5rem;
+        }
+        
+        .gap-3 {
+            gap: 0.75rem;
+        }
+        
+        .gap-4 {
+            gap: 1rem;
+        }
+        
+        .gap-5 {
+            gap: 1.25rem;
+        }
+        
+        .gap-6 {
+            gap: 1.5rem;
+        }
+        
+        .gap-8 {
+            gap: 2rem;
+        }
+        
+        .grid {
+            display: grid;
+        }
+        
+        .grid-cols-1 {
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+        
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        
+        .grid-cols-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        
+        @media (min-width: 640px) {
+            .sm\:grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            
+            .sm\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            
+            .sm\:grid-cols-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .md\:grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            
+            .md\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            
+            .md\:grid-cols-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+            
+            .md\:grid-cols-5 {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .lg\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            
+            .lg\:grid-cols-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+            
+            .lg\:grid-cols-5 {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+        
+        .col-span-1 {
+            grid-column: span 1 / span 1;
+        }
+        
+        .col-span-2 {
+            grid-column: span 2 / span 2;
+        }
+        
+        .col-span-3 {
+            grid-column: span 3 / span 3;
+        }
+        
+        .col-span-4 {
+            grid-column: span 4 / span 4;
+        }
+        
+        .col-span-full {
+            grid-column: 1 / -1;
+        }
+        
+        @media (min-width: 768px) {
+            .md\:col-span-2 {
+                grid-column: span 2 / span 2;
+            }
+            
+            .md\:col-span-3 {
+                grid-column: span 3 / span 3;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .lg\:col-span-2 {
+                grid-column: span 2 / span 2;
+            }
+            
+            .lg\:col-span-3 {
+                grid-column: span 3 / span 3;
+            }
+        }
+        
+        /* SPACING */
+        .m-0 {
+            margin: 0;
+        }
+        
+        .m-1 {
+            margin: 0.25rem;
+        }
+        
+        .m-2 {
+            margin: 0.5rem;
+        }
+        
+        .m-3 {
+            margin: 0.75rem;
+        }
+        
+        .m-4 {
+            margin: 1rem;
+        }
+        
+        .m-5 {
+            margin: 1.25rem;
+        }
+        
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .mt-0 {
+            margin-top: 0;
+        }
+        
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+        
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+        
+        .mt-3 {
+            margin-top: 0.75rem;
+        }
+        
+        .mt-4 {
+            margin-top: 1rem;
+        }
+        
+        .mt-5 {
+            margin-top: 1.25rem;
+        }
+        
+        .mb-0 {
+            margin-bottom: 0;
+        }
+        
+        .mb-1 {
+            margin-bottom: 0.25rem;
+        }
+        
+        .mb-2 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .mb-3 {
+            margin-bottom: 0.75rem;
+        }
+        
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+        
+        .mb-5 {
+            margin-bottom: 1.25rem;
+        }
+        
+        .ml-0 {
+            margin-left: 0;
+        }
+        
+        .ml-1 {
+            margin-left: 0.25rem;
+        }
+        
+        .ml-2 {
+            margin-left: 0.5rem;
+        }
+        
+        .ml-3 {
+            margin-left: 0.75rem;
+        }
+        
+        .ml-4 {
+            margin-left: 1rem;
+        }
+        
+        .mr-0 {
+            margin-right: 0;
+        }
+        
+        .mr-1 {
+            margin-right: 0.25rem;
+        }
+        
+        .mr-2 {
+            margin-right: 0.5rem;
+        }
+        
+        .mr-3 {
+            margin-right: 0.75rem;
+        }
+        
+        .mr-4 {
+            margin-right: 1rem;
+        }
+        
+        .p-0 {
+            padding: 0;
+        }
+        
+        .p-1 {
+            padding: 0.25rem;
+        }
+        
+        .p-2 {
+            padding: 0.5rem;
+        }
+        
+        .p-3 {
+            padding: 0.75rem;
+        }
+        
+        .p-4 {
+            padding: 1rem;
+        }
+        
+        .p-5 {
+            padding: 1.25rem;
+        }
+        
+        .p-6 {
+            padding: 1.5rem;
+        }
+        
+        .px-0 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        .px-1 {
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        
+        .px-2 {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        
+        .px-3 {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        
+        .px-4 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .px-5 {
+            padding-left: 1.25rem;
+            padding-right: 1.25rem;
+        }
+        
+        .px-6 {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        
+        .py-0 {
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        
+        .py-1 {
+            padding-top: 0.25rem;
+            padding-bottom: 0.25rem;
+        }
+        
+        .py-2 {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+        
+        .py-3 {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        
+        .py-4 {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        
+        .py-5 {
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
+        }
+        
+        .py-6 {
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        
+        .pt-0 {
+            padding-top: 0;
+        }
+        
+        .pt-1 {
+            padding-top: 0.25rem;
+        }
+        
+        .pt-2 {
+            padding-top: 0.5rem;
+        }
+        
+        .pt-3 {
+            padding-top: 0.75rem;
+        }
+        
+        .pt-4 {
+            padding-top: 1rem;
+        }
+        
+        .pb-0 {
+            padding-bottom: 0;
+        }
+        
+        .pb-1 {
+            padding-bottom: 0.25rem;
+        }
+        
+        .pb-2 {
+            padding-bottom: 0.5rem;
+        }
+        
+        .pb-3 {
+            padding-bottom: 0.75rem;
+        }
+        
+        .pb-4 {
+            padding-bottom: 1rem;
+        }
+        
+        .pl-0 {
+            padding-left: 0;
+        }
+        
+        .pl-1 {
+            padding-left: 0.25rem;
+        }
+        
+        .pl-2 {
+            padding-left: 0.5rem;
+        }
+        
+        .pl-3 {
+            padding-left: 0.75rem;
+        }
+        
+        .pl-4 {
+            padding-left: 1rem;
+        }
+        
+        .pr-0 {
+            padding-right: 0;
+        }
+        
+        .pr-1 {
+            padding-right: 0.25rem;
+        }
+        
+        .pr-2 {
+            padding-right: 0.5rem;
+        }
+        
+        .pr-3 {
+            padding-right: 0.75rem;
+        }
+        
+        .pr-4 {
+            padding-right: 1rem;
+        }
+        
+        /* COMPONENT STYLES */
+        /* Card */
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            position: relative;
+            transition: var(--transition-normal);
+            border: 1px solid transparent;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--gray-200);
+        }
+        
+        .card-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+        
+        .card-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        /* Button */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border: 1px solid transparent;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            border-radius: var(--border-radius-sm);
+        }
+        
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: var(--border-radius-md);
+        }
+        
+        .btn-icon {
+            margin-right: 0.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-primary:focus {
+            box-shadow: 0 0 0 3px var(--primary-light);
+            outline: none;
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-dark);
+        }
+        
+        .btn-secondary:focus {
+            box-shadow: 0 0 0 3px var(--secondary-light);
+            outline: none;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: var(--danger-dark);
+        }
+        
+        .btn-danger:focus {
+            box-shadow: 0 0 0 3px var(--danger-light);
+            outline: none;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: var(--warning-dark);
+        }
+        
+        .btn-warning:focus {
+            box-shadow: 0 0 0 3px var(--warning-light);
+            outline: none;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--gray-300);
+            color: var(--gray-700);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--gray-100);
+        }
+        
+        .btn:disabled,
+        .btn.disabled {
+            opacity: 0.65;
+            pointer-events: none;
+            cursor: default;
+        }
+        
+        /* Form Controls */
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--gray-700);
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--border-radius);
+            transition: var(--transition-fast);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+        
+        .form-control:disabled,
+        .form-control:read-only {
+            background-color: var(--gray-100);
+            opacity: 1;
+        }
+        
+        .form-label {
+            display: inline-block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-text {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--gray-600);
+        }
+        
+        /* Table */
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: var(--gray-700);
+            border-collapse: collapse;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-bottom: 1px solid var(--gray-200);
+            text-align: left;
+        }
+        
+        .table th {
+            font-weight: 600;
+            background-color: var(--gray-50);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--gray-50);
+        }
+        
+        .table-sm th,
+        .table-sm td {
+            padding: 0.3rem;
+        }
+        
+        .table-responsive {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: var(--border-radius-full);
+            transition: var(--transition-fast);
+        }
+        
+        .badge-primary {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
+        .badge-secondary {
+            background-color: var(--secondary-light);
+            color: var(--secondary-dark);
+        }
+        
+        .badge-danger {
+            background-color: var(--danger-light);
+            color: var(--danger-dark);
+        }
+        
+        .badge-warning {
+            background-color: var(--warning-light);
+            color: var(--warning-dark);
+        }
+        
+        .badge-success {
+            background-color: var(--success-light);
+            color: var(--success-dark);
+        }
+        
+        .badge-info {
+            background-color: var(--info-light);
+            color: var(--info-dark);
+        }
+        
+        /* Alert */
+        .alert {
+            position: relative;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: var(--border-radius);
+        }
+        
+        .alert-primary {
+            background-color: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+        
+        .alert-secondary {
+            background-color: var(--secondary-light);
+            border-color: var(--secondary);
+            color: var(--secondary-dark);
+        }
+        
+        .alert-danger {
+            background-color: var(--danger-light);
+            border-color: var(--danger);
+            color: var(--danger-dark);
+        }
+        
+        .alert-warning {
+            background-color: var(--warning-light);
+            border-color: var(--warning);
+            color: var(--warning-dark);
+        }
+        
+        /* Progress */
+        .progress {
+            display: flex;
+            height: 0.5rem;
+            overflow: hidden;
+            font-size: 0.75rem;
+            background-color: var(--gray-200);
+            border-radius: var(--border-radius-full);
+        }
+        
+        .progress-bar {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            color: white;
+            text-align: center;
+            white-space: nowrap;
+            background-color: var(--primary);
+            transition: width 0.6s ease;
+        }
+        
+        .progress-bar-striped {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+        }
+        
+        .progress-bar-animated {
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        
+        @keyframes progress-bar-stripes {
+            from {
+                background-position: 1rem 0;
+            }
+            to {
+                background-position: 0 0;
+            }
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1050;
+            max-width: 350px;
+            overflow: hidden;
+            font-size: 0.875rem;
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--gray-200);
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            opacity: 0;
+            transform: translateY(-1rem);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .toast-header {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            color: var(--gray-700);
+            background-color: rgba(255, 255, 255, 0.85);
+            background-clip: padding-box;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .toast-body {
+            padding: 0.75rem;
+        }
+        
+        .toast-success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .toast-danger {
+            border-left: 4px solid var(--danger);
+        }
+        
+        .toast-warning {
+            border-left: 4px solid var(--warning);
+        }
+        
+        .toast-info {
+            border-left: 4px solid var(--info);
+        }
+        
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-toggle {
+            white-space: nowrap;
+        }
+        
+        .dropdown-toggle::after {
+            display: inline-block;
+            margin-left: 0.255em;
+            vertical-align: 0.255em;
+            content: "";
+            border-top: 0.3em solid;
+            border-right: 0.3em solid transparent;
+            border-bottom: 0;
+            border-left: 0.3em solid transparent;
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1000;
+            display: none;
+            min-width: 10rem;
+            padding: 0.5rem 0;
+            margin: 0.125rem 0 0;
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            text-align: left;
+            list-style: none;
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .dropdown-menu.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 0.25rem 1.5rem;
+            clear: both;
+            font-weight: 400;
+            color: var(--gray-700);
+            text-align: inherit;
+            white-space: nowrap;
+            background-color: transparent;
+            border: 0;
+            cursor: pointer;
+        }
+        
+        .dropdown-item:hover,
+        .dropdown-item:focus {
+            color: var(--gray-900);
+            text-decoration: none;
+            background-color: var(--gray-100);
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1050;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            outline: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s linear, visibility 0.15s linear;
+        }
+        
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1040;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-dialog {
+            position: relative;
+            width: auto;
+            margin: 0.5rem;
+            pointer-events: none;
+            transform: translateY(-50px) scale(0.95);
+            transition: transform 0.3s ease-out;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .modal.show .modal-dialog {
+            transform: translateY(0) scale(1);
+        }
+        
+        .modal-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            pointer-events: auto;
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius-lg);
+            outline: 0;
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid var(--gray-200);
+            border-top-left-radius: calc(var(--border-radius-lg) - 1px);
+            border-top-right-radius: calc(var(--border-radius-lg) - 1px);
+        }
+        
+        .modal-title {
+            margin-bottom: 0;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+        
+        .modal-body {
+            position: relative;
+            flex: 1 1 auto;
+            padding: 1rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0.75rem;
+            border-top: 1px solid var(--gray-200);
+            border-bottom-right-radius: calc(var(--border-radius-lg) - 1px);
+            border-bottom-left-radius: calc(var(--border-radius-lg) - 1px);
+        }
+        
+        .modal-footer > * {
+            margin: 0.25rem;
+        }
+        
+        /* Nav */
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            padding-left: 0;
+            margin-bottom: 0;
+            list-style: none;
+        }
+        
+        .nav-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: var(--transition-fast);
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .nav-link:hover,
+        .nav-link:focus {
+            color: var(--primary);
+            background-color: var(--gray-100);
+        }
+        
+        .nav-link.active {
+            color: var(--primary);
+            background-color: var(--primary-light);
+            font-weight: 600;
+        }
+        
+        .nav-tabs {
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .nav-tabs .nav-link {
+            margin-bottom: -1px;
+            border: 1px solid transparent;
+            border-top-left-radius: var(--border-radius);
+            border-top-right-radius: var(--border-radius);
+        }
+        
+        .nav-tabs .nav-link:hover,
+        .nav-tabs .nav-link:focus {
+            border-color: var(--gray-200) var(--gray-200) var(--gray-200);
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--gray-700);
+            background-color: white;
+            border-color: var(--gray-200) var(--gray-200) white;
+        }
+        
+        /* Stat Card */
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            padding: 1.25rem;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            background-color: white;
+            transition: var(--transition-normal);
+            height: 100%;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .stat-card-icon {
+            position: absolute;
+            bottom: -1rem;
+            right: -1rem;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(-15deg);
+        }
+        
+        .stat-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--gray-600);
+        }
+        
+        /* Status Indicators */
+        .status-dot {
+            display: inline-block;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-dot.online {
+            background-color: var(--success);
+            box-shadow: 0 0 0 2px var(--success-light);
+        }
+        
+        .status-dot.offline {
+            background-color: var(--danger);
+            box-shadow: 0 0 0 2px var(--danger-light);
+        }
+        
+        .status-dot.pending {
+            background-color: var(--warning);
+            box-shadow: 0 0 0 2px var(--warning-light);
+        }
+        
+        /* Pulse Animation */
+        .pulse {
+            position: relative;
+        }
+        
+        .pulse::before {
+            content: '';
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            border-radius: inherit;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            z-index: -1;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0;
+            }
+        }
+        
+        .pulse.online::before {
+            background-color: var(--success);
+        }
+        
+        .pulse.offline::before {
+            background-color: var(--danger);
+        }
+        
+        .pulse.pending::before {
+            background-color: var(--warning);
+        }
+        
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+        
+        .invisible {
+            visibility: hidden !important;
+        }
+        
+        .visible {
+            visibility: visible !important;
+        }
+        
+        .d-none {
+            display: none !important;
+        }
+        
+        .d-inline {
+            display: inline !important;
+        }
+        
+        .d-inline-block {
+            display: inline-block !important;
+        }
+        
+        .d-block {
+            display: block !important;
+        }
+        
+        .d-flex {
+            display: flex !important;
+        }
+        
+        .d-inline-flex {
+            display: inline-flex !important;
+        }
+        
+        .w-100 {
+            width: 100% !important;
+        }
+        
+        .h-100 {
+            height: 100% !important;
+        }
+        
+        .text-primary {
+            color: var(--primary) !important;
+        }
+        
+        .text-secondary {
+            color: var(--secondary) !important;
+        }
+        
+        .text-success {
+            color: var(--success) !important;
+        }
+        
+        .text-danger {
+            color: var(--danger) !important;
+        }
+        
+        .text-warning {
+            color: var(--warning) !important;
+        }
+        
+        .text-info {
+            color: var(--info) !important;
+        }
+        
+        .text-white {
+            color: white !important;
+        }
+        
+        .text-muted {
+            color: var(--gray-600) !important;
+        }
+        
+        .bg-primary {
+            background-color: var(--primary) !important;
+        }
+        
+        .bg-secondary {
+            background-color: var(--secondary) !important;
+        }
+        
+        .bg-success {
+            background-color: var(--success) !important;
+        }
+        
+        .bg-danger {
+            background-color: var(--danger) !important;
+        }
+        
+        .bg-warning {
+            background-color: var(--warning) !important;
+        }
+        
+        .bg-info {
+            background-color: var(--info) !important;
+        }
+        
+        .bg-light {
+            background-color: var(--gray-100) !important;
+        }
+        
+        .bg-dark {
+            background-color: var(--gray-800) !important;
+        }
+        
+        .bg-white {
+            background-color: white !important;
+        }
+        
+        .bg-transparent {
+            background-color: transparent !important;
+        }
+        
+        .border {
+            border: 1px solid var(--gray-200) !important;
+        }
+        
+        .border-top {
+            border-top: 1px solid var(--gray-200) !important;
+        }
+        
+        .border-right {
+            border-right: 1px solid var(--gray-200) !important;
+        }
+        
+        .border-bottom {
+            border-bottom: 1px solid var(--gray-200) !important;
+        }
+        
+        .border-left {
+            border-left: 1px solid var(--gray-200) !important;
+        }
+        
+        .border-0 {
+            border: 0 !important;
+        }
+        
+        .border-primary {
+            border-color: var(--primary) !important;
+        }
+        
+        .border-secondary {
+            border-color: var(--secondary) !important;
+        }
+        
+        .border-success {
+            border-color: var(--success) !important;
+        }
+        
+        .border-danger {
+            border-color: var(--danger) !important;
+        }
+        
+        .border-warning {
+            border-color: var(--warning) !important;
+        }
+        
+        .border-info {
+            border-color: var(--info) !important;
+        }
+        
+        .rounded {
+            border-radius: var(--border-radius) !important;
+        }
+        
+        .rounded-sm {
+            border-radius: var(--border-radius-sm) !important;
+        }
+        
+        .rounded-lg {
+            border-radius: var(--border-radius-lg) !important;
+        }
+        
+        .rounded-circle {
+            border-radius: 50% !important;
+        }
+        
+        .rounded-pill {
+            border-radius: var(--border-radius-full) !important;
+        }
+        
+        .rounded-0 {
+            border-radius: 0 !important;
+        }
+        
+        .shadow-sm {
+            box-shadow: var(--shadow-sm) !important;
+        }
+        
+        .shadow {
+            box-shadow: var(--shadow) !important;
+        }
+        
+        .shadow-lg {
+            box-shadow: var(--shadow-lg) !important;
+        }
+        
+        .shadow-none {
+            box-shadow: none !important;
+        }
+        
+        .font-weight-light {
+            font-weight: 300 !important;
+        }
+        
+        .font-weight-normal {
+            font-weight: 400 !important;
+        }
+        
+        .font-weight-bold {
+            font-weight: 700 !important;
+        }
+        
+        .font-italic {
+            font-style: italic !important;
+        }
+        
+        .text-decoration-none {
+            text-decoration: none !important;
+        }
+        
+        .text-break {
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        .text-truncate {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        .text-center {
+            text-align: center !important;
+        }
+        
+        .text-left {
+            text-align: left !important;
+        }
+        
+        .text-right {
+            text-align: right !important;
+        }
+        
+        .text-lowercase {
+            text-transform: lowercase !important;
+        }
+        
+        .text-uppercase {
+            text-transform: uppercase !important;
+        }
+        
+        .text-capitalize {
+            text-transform: capitalize !important;
+        }
+        
+        .opacity-0 {
+            opacity: 0 !important;
+        }
+        
+        .opacity-25 {
+            opacity: 0.25 !important;
+        }
+        
+        .opacity-50 {
+            opacity: 0.5 !important;
+        }
+        
+        .opacity-75 {
+            opacity: 0.75 !important;
+        }
+        
+        .opacity-100 {
+            opacity: 1 !important;
+        }
+        
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                transform: translateY(1rem);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutDown {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(1rem);
+                opacity: 0;
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .fade-out {
+            animation: fadeOut 0.3s ease-in-out;
+        }
+        
+        .slide-in-up {
+            animation: slideInUp 0.3s ease-in-out;
+        }
+        
+        .slide-out-down {
+            animation: slideOutDown 0.3s ease-in-out;
+        }
+        
+        /* CUSTOM COMPONENTS FOR APP */
+        /* Status Indicators with Pulse */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--border-radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-indicator.online {
+            background-color: var(--success-light);
+            color: var(--success-dark);
+        }
+        
+        .status-indicator.offline {
+            background-color: var(--danger-light);
+            color: var(--danger-dark);
+        }
+        
+        .status-indicator.pending {
+            background-color: var(--warning-light);
+            color: var(--warning-dark);
+        }
+        
+        /* Bus List Item */
+        .bus-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            transition: var(--transition-normal);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        
+        .bus-list-item:hover {
+            background-color: var(--gray-100);
+            transform: translateX(3px);
+        }
+        
+        .bus-list-item.active {
+            background-color: var(--primary-light);
+            border-left-color: var(--primary);
+        }
+        
+        /* WiFi Signal Strength Indicator */
+        .signal-strength-indicator {
+            display: inline-flex;
+            align-items: flex-end;
+            height: 16px;
+            gap: 2px;
+        }
+        
+        .signal-bar {
+            width: 3px;
+            background-color: var(--gray-300);
+            border-radius: 1px;
+        }
+        
+        .signal-bar:nth-child(1) {
+            height: 20%;
+        }
+        
+        .signal-bar:nth-child(2) {
+            height: 40%;
+        }
+        
+        .signal-bar:nth-child(3) {
+            height: 60%;
+        }
+        
+        .signal-bar:nth-child(4) {
+            height: 80%;
+        }
+        
+        .signal-bar:nth-child(5) {
+            height: 100%;
+        }
+        
+        .signal-excellent .signal-bar {
+            background-color: var(--success);
+        }
+        
+        .signal-good .signal-bar:nth-child(-n+4) {
+            background-color: var(--success);
+        }
+        
+        .signal-fair .signal-bar:nth-child(-n+3) {
+            background-color: var(--warning);
+        }
+        
+        .signal-poor .signal-bar:nth-child(-n+2) {
+            background-color: var(--danger);
+        }
+        
+        .signal-none .signal-bar {
+            background-color: var(--gray-300);
+        }
+        
+        /* Map Marker Styles */
+        .map-marker-icon {
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px var(--primary-light);
+            transition: var(--transition-normal);
+        }
+        
+        .map-marker-icon:hover {
+            transform: scale(1.2);
+        }
+        
+        .map-marker-terminal {
+            background-color: var(--secondary);
+            box-shadow: 0 0 0 4px var(--secondary-light);
+        }
+        
+        .map-marker-offline {
+            background-color: var(--danger);
+            box-shadow: 0 0 0 4px var(--danger-light);
+        }
+        
+        /* Specific App Components */
+        #map-container {
+            height: 250px;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        #full-map-container {
+            height: 500px;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        @media (max-width: 768px) {
+            #map-container {
+                height: 200px;
+            }
+            
+            #full-map-container {
+                height: 350px;
+            }
+        }
+        
+        /* Verification Section Styles */
+        .verification-section {
+            background: linear-gradient(135deg, #EBF4FF 0%, #E6FFFA 100%);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--primary-light);
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .verification-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        
+        .verification-loading {
+            position: relative;
+        }
+        
+        .verification-loading::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+            animation: scanning 2s infinite;
+        }
+        
+        @keyframes scanning {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+        
+        /* Terminal Summary Card */
+        .terminal-summary-card {
+            background-color: white;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: 1rem;
+            transition: var(--transition-normal);
+            height: 100%;
+            border: 1px solid transparent;
+        }
+        
+        .terminal-summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--gray-200);
+        }
+        
+        .terminal-summary-card h3 {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: var(--gray-800);
+            border-bottom: 1px solid var(--gray-200);
+            padding-bottom: 0.5rem;
+        }
+        
+        /* Loading Animation */
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            min-height: 60vh;
+            width: 100%;
+        }
+        
+        .loader {
+            border: 3px solid var(--gray-200);
+            border-radius: 50%;
+            border-top: 3px solid var(--primary);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loading-progress {
+            width: 200px;
+            height: 6px;
+            background-color: var(--gray-200);
+            border-radius: var(--border-radius-full);
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .loading-progress-bar {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1060;
+        }
+        
+        .toast-notification {
+            max-width: 350px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+            animation: toast-in-right 0.5s;
+        }
+        
+        .toast-notification.hide {
+            animation: toast-out-right 0.5s forwards;
+        }
+        
+        @keyframes toast-in-right {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes toast-out-right {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        /* Connectivity Rate Slider */
+        .connectivity-rate-slider {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--success) 100%);
+            border-radius: var(--border-radius-full);
+            position: relative;
+            margin: 0.5rem 0;
+        }
+        
+        .connectivity-rate-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border: 2px solid var(--gray-300);
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: var(--shadow-sm);
+            transition: left 0.5s ease;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            html {
+                font-size: 14px;
+            }
+            
+            .card {
+                padding: 0.75rem;
+            }
+            
+            .stat-card-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-card-icon {
+                font-size: 3.5rem;
+            }
+            
+            .terminal-summary-card {
+                padding: 0.75rem;
+            }
+            
+            .btn {
+                padding: 0.375rem 0.75rem;
+            }
+            
+            .nav-link {
+                padding: 0.375rem 0.75rem;
+            }
+        }
+        
+        /* Hover Effects */
+        .hover-lift {
+            transition: var(--transition-normal);
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .hover-grow {
+            transition: var(--transition-normal);
+        }
+        
+        .hover-grow:hover {
+            transform: scale(1.03);
+        }
+        
+        /* Glassmorphism Effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        
+        /* Custom Animation for Bus Verification */
+        @keyframes scanning-wave {
+            0% {
+                background-position: -100% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        
+        .scanning-animation {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .scanning-animation::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+            background-size: 200% 100%;
+            animation: scanning-wave 2s infinite linear;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Container -->
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-md w-full sticky top-0 z-30">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <i class="fas fa-bus-alt text-3xl text-primary"></i>
+                            <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                            </span>
+                        </div>
+                        <div>
+                            <h1 class="text-xl md:text-2xl font-bold text-gray-800">Gestor de Flota <span class="text-primary">PRO</span></h1>
+                            <p class="text-xs text-gray-500 -mt-1">Sistema Avanzado de Monitoreo v3.0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Geo and System Stats -->
+                    <div class="flex flex-wrap md:flex-nowrap items-center gap-3">
+                        <!-- Geolocation Status -->
+                        <div id="geo-status" class="flex items-center space-x-2 text-sm bg-gray-100 px-3 py-1.5 rounded-full">
+                            <i class="fas fa-map-marker-alt text-primary"></i>
+                            <span id="geo-status-text" class="text-gray-600 font-medium">Iniciando GPS...</span>
+                        </div>
+                        
+                        <!-- System Status -->
+                        <div class="flex items-center space-x-2 text-sm bg-success-light px-3 py-1.5 rounded-full text-success-dark">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Sistema Online</span>
+                        </div>
+                        
+                        <!-- Date Time -->
+                        <div class="hidden md:flex items-center space-x-2 text-sm bg-gray-100 px-3 py-1.5 rounded-full">
+                            <i class="far fa-clock text-gray-500"></i>
+                            <span id="current-datetime" class="text-gray-600 font-medium">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white border-b border-gray-200 sticky top-[68px] md:top-[60px] z-20 shadow-sm">
+            <div class="container mx-auto px-4 flex items-center justify-between">
+                <div class="flex space-x-1 md:space-x-2 overflow-x-auto hide-scrollbar py-1">
+                    <button data-view="dashboard" class="nav-link active">
+                        <i class="fas fa-tachometer-alt mr-1.5"></i>Dashboard
+                    </button>
+                    <button data-view="management" class="nav-link">
+                        <i class="fas fa-tasks mr-1.5"></i>Gestión
+                    </button>
+                    <button data-view="reports" class="nav-link">
+                        <i class="fas fa-chart-bar mr-1.5"></i>Reportes
+                    </button>
+                    <button data-view="map" class="nav-link">
+                        <i class="fas fa-map-marked-alt mr-1.5"></i>Mapa
+                    </button>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="download-excel-btn" class="btn btn-secondary text-xs md:text-sm">
+                        <i class="fas fa-file-excel mr-1.5"></i>
+                        <span class="hidden md:inline">Exportar Excel</span>
+                        <span class="md:hidden">Excel</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto p-3 md:p-6">
+            <!-- Loading Screen -->
+            <div id="loading-screen" class="loading-container">
+                <div class="loader"></div>
+                <p class="text-lg font-semibold text-gray-600">Cargando datos desde Supabase...</p>
+                <p class="text-sm text-gray-500 mt-1">Estableciendo conexión con servidores...</p>
+                <div class="loading-progress">
+                    <div id="loading-progress-bar" class="loading-progress-bar" style="width: 10%"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="hidden fade-in">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-chart-network text-primary mr-2"></i>
+                    Monitoreo General
+                    <span class="ml-2 badge badge-primary">Tiempo Real</span>
+                </h2>
+                
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-5">
+                    <div class="stat-card text-primary">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-primary">Total de Buses</p>
+                                <p id="total-buses" class="stat-card-value">0</p>
+                                <p class="text-xs text-gray-500 mt-1">Flota completa</p>
+                            </div>
+                            <div class="rounded-full bg-primary-light p-2">
+                                <i class="fas fa-bus text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-icon">
+                            <i class="fas fa-bus-alt"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card text-success">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-success">Buses Online</p>
+                                <p id="buses-online" class="stat-card-value">0</p>
+                                <div class="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                    <span id="online-percentage">0%</span>
+                                    <i class="fas fa-wifi"></i>
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-success-light p-2">
+                                <i class="fas fa-wifi text-success"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-icon">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card text-danger">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-danger">Buses Offline</p>
+                                <p id="buses-offline" class="stat-card-value">0</p>
+                                <div class="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                    <span id="offline-percentage">0%</span>
+                                    <i class="fas fa-times-circle"></i>
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-danger-light p-2">
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card text-warning">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-warning">Pendientes</p>
+                                <p id="buses-pending" class="stat-card-value">0</p>
+                                <div class="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                    <span id="pending-percentage">0%</span>
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-warning-light p-2">
+                                <i class="fas fa-clock text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map and Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5 mb-5">
+                    <div class="card lg:col-span-2">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Mapa de Terminales</h3>
+                            <div class="text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <span>Actualizado en tiempo real</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="map-container"></div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-success mr-2"></div>
+                                    <span>Terminal Activa</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-danger mr-2"></div>
+                                    <span>Terminal Inactiva</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-primary mr-2"></div>
+                                    <span>Bus Registrado</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-gray-400 mr-2"></div>
+                                    <span>Ubicación Actual</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Estado de la Flota</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="h-56">
+                                <canvas id="status-chart"></canvas>
+                            </div>
+                            <div class="mt-3">
+                                <h4 class="font-semibold text-sm mb-2">Tasa de Conectividad</h4>
+                                <div class="progress">
+                                    <div id="connectivity-rate-bar" class="progress-bar bg-success" style="width: 0%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>0%</span>
+                                    <span id="connectivity-rate">0%</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terminal Status and Pending Buses -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5">
+                    <div class="card col-span-full">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Resumen por Terminal</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="terminal-summary-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                                <!-- Terminal summaries will be generated here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card lg:col-span-2">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Buses con Problemas Recientes</h3>
+                            <button class="text-xs text-primary hover:text-primary-dark font-medium">
+                                <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>PPU</th>
+                                            <th>Terminal</th>
+                                            <th>Estado</th>
+                                            <th>Última Actividad</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="problems-table">
+                                        <!-- Problem buses will be listed here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Buses Pendientes</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="pending-list-dashboard" class="space-y-2 max-h-[250px] overflow-y-auto pr-2">
+                                <!-- Pending list for dashboard -->
+                            </div>
+                            <div class="mt-4 pt-3 border-top">
+                                <h4 class="font-semibold text-sm mb-2">Tipos de Problemas</h4>
+                                <div class="text-sm space-y-2">
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span>Sin Conexión</span>
+                                            <span id="sin-conexion-count" class="font-semibold">0</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="sin-conexion-bar" class="progress-bar bg-danger" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span>Falta Instalación</span>
+                                            <span id="falta-instalacion-count" class="font-semibold">0</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="falta-instalacion-bar" class="progress-bar bg-warning" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span>Sin SIN Card</span>
+                                            <span id="sin-card-count" class="font-semibold">0</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="sin-card-bar" class="progress-bar bg-warning" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Management View -->
+            <div id="management-view" class="hidden fade-in">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-cogs text-primary mr-2"></i>
+                    Gestión de Conectividad
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5">
+                    <div class="card lg:col-span-1">
+                        <div class="card-header">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-bold text-lg">Listado de Buses</h3>
+                                <span class="badge badge-primary" id="bus-count-badge">0 buses</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <div class="relative">
+                                    <input type="text" id="search-ppu" placeholder="Buscar por PPU..." class="form-control pl-10 pr-4 py-2">
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Filter Options -->
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                <button class="badge badge-primary filter-btn active" data-filter="all">
+                                    <i class="fas fa-list-ul mr-1"></i>Todos
+                                </button>
+                                <button class="badge filter-btn" data-filter="online">
+                                    <i class="fas fa-wifi mr-1"></i>Online
+                                </button>
+                                <button class="badge filter-btn" data-filter="offline">
+                                    <i class="fas fa-times-circle mr-1"></i>Offline
+                                </button>
+                                <button class="badge filter-btn" data-filter="pending">
+                                    <i class="fas fa-clock mr-1"></i>Pendientes
+                                </button>
+                            </div>
+                            
+                            <div id="bus-list-container" class="overflow-y-auto max-h-[calc(100vh-300px)] pr-2"></div>
+                        </div>
+                    </div>
+
+                    <div id="details-panel" class="card lg:col-span-2">
+                        <div id="placeholder-panel" class="flex flex-col items-center justify-center py-12 text-gray-500">
+                            <i class="fas fa-bus-alt text-6xl mb-4 text-gray-300"></i>
+                            <h2 class="text-xl font-semibold">Seleccione un bus</h2>
+                            <p class="text-center">Elija un bus de la lista para ver y editar sus detalles.</p>
+                        </div>
+
+                        <div id="form-panel" class="hidden">
+                            <div class="card-header">
+                                <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <h2 class="text-2xl font-bold" id="form-ppu"></h2>
+                                            <div id="form-status-indicator" class="ml-3 status-indicator">
+                                                <span class="status-dot"></span>
+                                                <span id="form-status-text"></span>
+                                            </div>
+                                        </div>
+                                        <p class="text-md text-gray-600" id="form-terminal-linea"></p>
+                                    </div>
+                                    
+                                    <!-- Connection Quality Meter -->
+                                    <div class="w-full md:w-1/3">
+                                        <p class="text-sm font-semibold mb-1">Calidad de Conexión</p>
+                                        <div class="connectivity-rate-slider">
+                                            <div class="connectivity-rate-handle" id="quality-indicator" style="left: 90%"></div>
+                                        </div>
+                                        <div class="flex justify-between text-xs mt-1">
+                                            <span>Crítica</span>
+                                            <span>Excelente</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <!-- Advanced Status Summary -->
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-4">
+                                    <div class="bg-gray-50 rounded-lg p-2">
+                                        <p class="text-gray-500">Última Conexión</p>
+                                        <p class="font-semibold" id="last-connection">--</p>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-lg p-2">
+                                        <p class="text-gray-500">Calidad Señal</p>
+                                        <div class="signal-strength-indicator excellent mt-1" id="signal-quality">
+                                            <div class="signal-bar"></div>
+                                            <div class="signal-bar"></div>
+                                            <div class="signal-bar"></div>
+                                            <div class="signal-bar"></div>
+                                            <div class="signal-bar"></div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-lg p-2">
+                                        <p class="text-gray-500">Registros</p>
+                                        <p class="font-semibold" id="verification-count">0</p>
+                                    </div>
+                                </div>
+                            
+                                <div id="verification-section" class="verification-section p-4 mb-5">
+                                    <h3 class="font-semibold mb-3 text-gray-700 flex items-center">
+                                        <i class="fas fa-wifi text-primary mr-2"></i>
+                                        Verificación de Conexión WiFi
+                                    </h3>
+                                    <div id="verification-status">
+                                        <div class="flex items-center gap-2 mb-3">
+                                            <div class="flex-shrink-0 bg-white p-2 rounded-lg">
+                                                <i class="fas fa-map-marker-alt text-primary"></i>
+                                            </div>
+                                            <p class="text-sm text-gray-600" id="verification-distance-text">La verificación está disponible cuando se encuentre a menos de 10m de una terminal.</p>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                            <div class="bg-white bg-opacity-70 rounded-lg p-2 text-sm">
+                                                <p class="text-gray-500">Terminal</p>
+                                                <p class="font-semibold" id="verification-terminal">--</p>
+                                            </div>
+                                            <div class="bg-white bg-opacity-70 rounded-lg p-2 text-sm">
+                                                <p class="text-gray-500">Distancia</p>
+                                                <p class="font-semibold" id="verification-distance">--</p>
+                                            </div>
+                                            <div class="bg-white bg-opacity-70 rounded-lg p-2 text-sm">
+                                                <p class="text-gray-500">Estado</p>
+                                                <p class="font-semibold" id="verification-status-text">No Disponible</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <button id="verify-connection-btn" class="btn btn-primary w-100 flex items-center justify-center gap-2 disabled" disabled>
+                                            <i class="fas fa-sync-alt"></i>
+                                            <span>Verificar Conexión WiFi</span>
+                                        </button>
+                                    </div>
+                                    <div id="verification-loading" class="hidden verification-loading">
+                                        <div class="flex items-center justify-center space-x-3 text-gray-600 p-4">
+                                            <i class="fas fa-spinner fa-spin text-primary"></i>
+                                            <span>Realizando escaneo de redes WiFi...</span>
+                                        </div>
+                                        <div class="bg-white bg-opacity-80 p-3 rounded-lg text-sm font-mono text-gray-700 mb-3">
+                                            <p>> Inicializando módulo WiFi...</p>
+                                            <p>> Escaneando redes disponibles...</p>
+                                            <p class="typing-animation" id="scanning-text"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <form id="bus-details-form" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                    <input type="hidden" id="form-id">
+                                    
+                                    <!-- Form Fields -->
+                                    <div class="form-group">
+                                        <label for="form-sin-card" class="form-label">N° Sin Card</label>
+                                        <input type="text" id="form-sin-card" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="form-fecha-instalacion" class="form-label">Fecha de Instalación</label>
+                                        <input type="date" id="form-fecha-instalacion" class="form-control">
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-6 pt-2">
+                                        <label class="form-label">Chip Instalado:</label>
+                                        <div class="flex items-center"><input type="radio" id="chip-si" name="chip" value="Si" class="h-4 w-4"><label for="chip-si" class="ml-2">Sí</label></div>
+                                        <div class="flex items-center"><input type="radio" id="chip-no" name="chip" value="No" class="h-4 w-4"><label for="chip-no" class="ml-2">No</label></div>
+                                    </div>
+                                    <div class="flex items-center space-x-6 pt-2">
+                                        <label class="form-label">Conectividad WiFi:</label>
+                                        <div class="flex items-center"><input type="radio" id="conectividad-si" name="conectividad" value="Si" class="h-4 w-4"><label for="conectividad-si" class="ml-2">Sí</label></div>
+                                        <div class="flex items-center"><input type="radio" id="conectividad-no" name="conectividad" value="No" class="h-4 w-4"><label for="conectividad-no" class="ml-2">No</label></div>
+                                    </div>
+
+                                    <div class="md:col-span-2">
+                                        <label for="form-observacion" class="form-label">Reporte Técnico</label>
+                                        <textarea id="form-observacion" rows="6" class="form-control bg-gray-50 font-mono text-xs" readonly></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                            <div class="card-footer">
+                                <div class="flex justify-end gap-3">
+                                    <button type="button" id="cancel-btn" class="btn btn-outline">
+                                        <i class="fas fa-times mr-1.5"></i>Cancelar
+                                    </button>
+                                    <button type="submit" form="bus-details-form" class="btn btn-secondary">
+                                        <i class="fas fa-save mr-1.5"></i>Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reports View -->
+            <div id="reports-view" class="hidden fade-in">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-chart-line text-primary mr-2"></i>
+                    Reportes Avanzados
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5 mb-5">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Tendencia de Conectividad</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="h-60 md:h-72">
+                                <canvas id="connectivity-trend-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Distribución por Terminal</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="h-60 md:h-72">
+                                <canvas id="terminal-distribution-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5">
+                    <div class="card lg:col-span-2">
+                        <div class="card-header">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-bold text-lg">Estadísticas Detalladas</h3>
+                                <div>
+                                    <select id="stats-period-selector" class="form-control text-sm py-1">
+                                        <option value="day">Hoy</option>
+                                        <option value="week" selected>Esta Semana</option>
+                                        <option value="month">Este Mes</option>
+                                        <option value="year">Este Año</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Terminal</th>
+                                            <th>Total Buses</th>
+                                            <th>Online</th>
+                                            <th>Offline</th>
+                                            <th>Tasa Conectividad</th>
+                                            <th>Verificaciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="terminal-stats-table">
+                                        <!-- Terminal stats will be listed here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Estado de Chips</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="h-48">
+                                <canvas id="chip-status-chart"></canvas>
+                            </div>
+                            <div class="mt-4 grid grid-cols-1 gap-3">
+                                <div class="bg-gray-50 p-3 rounded-lg">
+                                    <div class="flex justify-between items-center">
+                                        <h4 class="font-semibold text-sm">Cobertura de Instalación</h4>
+                                        <span class="text-lg font-bold text-success" id="installation-coverage">0%</span>
+                                    </div>
+                                    <div class="progress mt-1">
+                                        <div id="installation-coverage-bar" class="progress-bar bg-success" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded-lg">
+                                    <div class="flex justify-between items-center">
+                                        <h4 class="font-semibold text-sm">SIN Cards Registradas</h4>
+                                        <span class="text-lg font-bold text-primary" id="sin-cards-registered">0%</span>
+                                    </div>
+                                    <div class="progress mt-1">
+                                        <div id="sin-cards-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map View -->
+            <div id="map-view" class="hidden fade-in">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-map-marked-alt text-primary mr-2"></i>
+                    Mapa de Flota
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-5">
+                    <div class="card lg:col-span-3">
+                        <div class="card-header">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-bold text-lg">Ubicación de Terminales y Buses</h3>
+                                <div class="flex gap-2">
+                                    <button id="center-map-btn" class="btn btn-outline py-1 px-2 text-sm">
+                                        <i class="fas fa-crosshairs"></i>
+                                        <span class="ml-1 hidden md:inline">Centrar</span>
+                                    </button>
+                                    <select id="map-filter" class="form-control text-sm py-1">
+                                        <option value="all">Todos</option>
+                                        <option value="online">Online</option>
+                                        <option value="offline">Offline</option>
+                                        <option value="terminals">Solo Terminales</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="full-map-container"></div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="flex flex-wrap gap-3 justify-between">
+                                <div class="flex items-center gap-4 text-xs">
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-success mr-2"></div>
+                                        <span>Terminal Activa</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-danger mr-2"></div>
+                                        <span>Terminal Inactiva</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-primary mr-2"></div>
+                                        <span>Bus Online</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-gray-500 mr-2"></div>
+                                        <span>Bus Offline</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span id="map-last-updated" class="text-xs text-gray-500">Última actualización: Hace 0 min</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-bold text-lg">Detalles de Terminal</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="terminal-details-placeholder" class="flex flex-col items-center justify-center py-8 text-gray-500">
+                                <i class="fas fa-map-marker-alt text-4xl mb-3 text-gray-300"></i>
+                                <p class="text-center">Seleccione una terminal en el mapa para ver sus detalles</p>
+                            </div>
+                            <div id="terminal-details-content" class="hidden">
+                                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                                    <h4 id="selected-terminal-name" class="font-bold text-lg text-primary">-</h4>
+                                    <p id="selected-terminal-address" class="text-sm text-gray-600">-</p>
+                                    <div class="flex items-center mt-2">
+                                        <div id="selected-terminal-status" class="badge badge-success">Activo</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3 mb-4">
+                                    <div class="bg-primary-light rounded-lg p-3 text-center">
+                                        <p class="text-sm text-gray-600">Buses Online</p>
+                                        <p id="selected-terminal-online" class="text-xl font-bold text-primary">-</p>
+                                    </div>
+                                    <div class="bg-danger-light rounded-lg p-3 text-center">
+                                        <p class="text-sm text-gray-600">Buses Offline</p>
+                                        <p id="selected-terminal-offline" class="text-xl font-bold text-danger">-</p>
+                                    </div>
+                                </div>
+                                
+                                <h4 class="font-semibold mb-2">Buses en esta Terminal</h4>
+                                <div id="terminal-buses-list" class="max-h-[200px] overflow-y-auto pr-2 space-y-2">
+                                    <!-- Terminal buses will be listed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast-container">
+        <div id="toast" class="toast-notification hidden"></div>
+    </div>
+
+<script>
+    // --- SUPABASE & APP CONFIG ---
+    const SUPABASE_URL = 'https://tcmtxvuucjttngcazgff.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjbXR4dnV1Y2p0dG5nY2F6Z2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA3MjUwMDEsImV4cCI6MjA1NjMwMTAwMX0.2WcIjMUEhSM6j9kYpbsYArQocZdHx86k7wXk-NyjIs0';
+
+    // The global 'supabase' object is available from the script tag.
+    // We use it to create a client instance with a new variable name.
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const TABLE_NAME = 'conectividad_wifi';
+
+    const TERMINALS = {
+        'El Roble': { 
+            lat: -33.44071194412281, 
+            lon: -70.78973603006452,
+            address: 'Av. El Roble 745, Maipú, Santiago',
+            active: true
+        },
+        'La Reina': { 
+            lat: -33.4648451661274, 
+            lon: -70.53179284909858,
+            address: 'Av. Larraín 9900, La Reina, Santiago',
+            active: true
+        },
+        'Maria Angelica': { 
+            lat: -33.51772240158645, 
+            lon: -70.55641931656773,
+            address: 'María Angélica 1620, La Cisterna, Santiago',
+            active: true
+        },
+        'El Descanso': { 
+            lat: -33.4695150389365, 
+            lon: -70.76243487908678,
+            address: 'Av. El Descanso 420, Maipú, Santiago',
+            active: false
+        }
+    };
+    const VERIFICATION_RADIUS_METERS = 10;
+
+    // --- STATE MANAGEMENT ---
+    let state = {
+        fleetData: [],
+        filteredBuses: [],
+        currentBusId: null,
+        currentView: 'dashboard',
+        userLocation: null,
+        nearestTerminal: null,
+        distanceToTerminal: Infinity,
+        charts: {
+            status: null,
+            connectivityTrend: null,
+            terminalDistribution: null,
+            chipStatus: null
+        },
+        maps: {
+            dashboard: null,
+            full: null,
+            markers: {
+                terminals: [],
+                buses: [],
+                user: null
+            }
+        },
+        selectedTerminal: null,
+        filterActive: 'all',
+        searchTerm: '',
+        lastUpdate: new Date()
+    };
+
+    // --- DOM ELEMENTS ---
+    const dom = {
+        loadingScreen: document.getElementById('loading-screen'),
+        loadingProgressBar: document.getElementById('loading-progress-bar'),
+        views: {
+            dashboard: document.getElementById('dashboard-view'),
+            management: document.getElementById('management-view'),
+            reports: document.getElementById('reports-view'),
+            map: document.getElementById('map-view')
+        },
+        navLinks: document.querySelectorAll('.nav-link'),
+        busListContainer: document.getElementById('bus-list-container'),
+        searchInput: document.getElementById('search-ppu'),
+        placeholderPanel: document.getElementById('placeholder-panel'),
+        formPanel: document.getElementById('form-panel'),
+        busForm: document.getElementById('bus-details-form'),
+        toastEl: document.getElementById('toast'),
+        downloadBtn: document.getElementById('download-excel-btn'),
+        geoStatusText: document.getElementById('geo-status-text'),
+        verifyConnectionBtn: document.getElementById('verify-connection-btn'),
+        currentDatetime: document.getElementById('current-datetime'),
+        filterButtons: document.querySelectorAll('.filter-btn'),
+        centerMapBtn: document.getElementById('center-map-btn'),
+        mapFilter: document.getElementById('map-filter'),
+        busCountBadge: document.getElementById('bus-count-badge'),
+        statsPeriodSelector: document.getElementById('stats-period-selector'),
+        mapLastUpdated: document.getElementById('map-last-updated'),
+        verificationSection: {
+            status: document.getElementById('verification-status'),
+            loading: document.getElementById('verification-loading'),
+            distanceText: document.getElementById('verification-distance-text'),
+            terminal: document.getElementById('verification-terminal'),
+            distance: document.getElementById('verification-distance'),
+            statusText: document.getElementById('verification-status-text'),
+            scanningText: document.getElementById('scanning-text')
+        },
+        terminal: {
+            detailsPlaceholder: document.getElementById('terminal-details-placeholder'),
+            detailsContent: document.getElementById('terminal-details-content'),
+            name: document.getElementById('selected-terminal-name'),
+            address: document.getElementById('selected-terminal-address'),
+            status: document.getElementById('selected-terminal-status'),
+            online: document.getElementById('selected-terminal-online'),
+            offline: document.getElementById('selected-terminal-offline'),
+            busesList: document.getElementById('terminal-buses-list'),
+            statsTable: document.getElementById('terminal-stats-table'),
+            summaryGrid: document.querySelector('.terminal-summary-grid')
+        },
+        dashboard: {
+            total: document.getElementById('total-buses'),
+            online: document.getElementById('buses-online'),
+            offline: document.getElementById('buses-offline'),
+            pending: document.getElementById('buses-pending'),
+            onlinePercentage: document.getElementById('online-percentage'),
+            offlinePercentage: document.getElementById('offline-percentage'),
+            pendingPercentage: document.getElementById('pending-percentage'),
+            pendingList: document.getElementById('pending-list-dashboard'),
+            problemsTable: document.getElementById('problems-table'),
+            sinConexionCount: document.getElementById('sin-conexion-count'),
+            sinConexionBar: document.getElementById('sin-conexion-bar'),
+            faltaInstalacionCount: document.getElementById('falta-instalacion-count'),
+            faltaInstalacionBar: document.getElementById('falta-instalacion-bar'),
+            sinCardCount: document.getElementById('sin-card-count'),
+            sinCardBar: document.getElementById('sin-card-bar'),
+            connectivityRate: document.getElementById('connectivity-rate'),
+            connectivityRateBar: document.getElementById('connectivity-rate-bar'),
+            mapContainer: document.getElementById('map-container'),
+            fullMapContainer: document.getElementById('full-map-container'),
+            charts: {
+                status: document.getElementById('status-chart'),
+                connectivityTrend: document.getElementById('connectivity-trend-chart'),
+                terminalDistribution: document.getElementById('terminal-distribution-chart'),
+                chipStatus: document.getElementById('chip-status-chart')
+            }
+        },
+        form: {
+            id: document.getElementById('form-id'),
+            ppu: document.getElementById('form-ppu'),
+            terminalLinea: document.getElementById('form-terminal-linea'),
+            statusIndicator: document.getElementById('form-status-indicator'),
+            statusText: document.getElementById('form-status-text'),
+            sinCard: document.getElementById('form-sin-card'),
+            fechaInstalacion: document.getElementById('form-fecha-instalacion'),
+            observacion: document.getElementById('form-observacion'),
+            cancelBtn: document.getElementById('cancel-btn'),
+            lastConnection: document.getElementById('last-connection'),
+            signalQuality: document.getElementById('signal-quality'),
+            verificationCount: document.getElementById('verification-count'),
+            qualityIndicator: document.getElementById('quality-indicator')
+        },
+        reports: {
+            installationCoverage: document.getElementById('installation-coverage'),
+            installationCoverageBar: document.getElementById('installation-coverage-bar'),
+            sinCardsRegistered: document.getElementById('sin-cards-registered'),
+            sinCardsBar: document.getElementById('sin-cards-bar')
+        }
+    };
+
+    // --- SUPABASE FUNCTIONS ---
+    async function fetchBuses() {
+        updateLoadingProgress(30);
+        const { data, error } = await supabaseClient.from(TABLE_NAME).select('*');
+        if (error) {
+            console.error('Error fetching buses:', error);
+            showToast(`Error al cargar datos: ${error.message}`, 'error');
+            return [];
+        }
+        updateLoadingProgress(60);
+        
+        // Process data for consistency
+        return data.map(bus => ({
+            ...bus,
+            chipInstalado: bus.chipInstalado || 'No',
+            conectividad: bus.conectividad || 'No',
+            observacion: bus.observacion || '',
+            // Calculate location based on terminal
+            location: getLocationFromTerminal(bus.terminal)
+        }));
+    }
+
+    function getLocationFromTerminal(terminalName) {
+        if (!terminalName || !TERMINALS[terminalName]) return null;
+        
+        const terminal = TERMINALS[terminalName];
+        // Add a small random offset to the terminal location (within ~200m)
+        const latOffset = (Math.random() - 0.5) * 0.004;
+        const lonOffset = (Math.random() - 0.5) * 0.004;
+        
+        return {
+            lat: terminal.lat + latOffset,
+            lon: terminal.lon + lonOffset
+        };
+    }
+
+    async function updateBus(busData) {
+        const { id, ...updateData } = busData;
+        const { error } = await supabaseClient.from(TABLE_NAME).update(updateData).eq('id', id);
+        if (error) {
+            console.error('Error updating bus:', error);
+            showToast(`Error al guardar: ${error.message}`, 'error');
+            return false;
+        }
+        return true;
+    }
+
+    // --- GEOLOCATION FUNCTIONS ---
+    function startWatchingLocation() {
+        if (!navigator.geolocation) {
+            dom.geoStatusText.textContent = 'GPS no soportado';
+            return;
+        }
+        
+        // Initial status update
+        dom.geoStatusText.textContent = 'Obteniendo ubicación...';
+        
+        navigator.geolocation.watchPosition(handleLocationSuccess, handleLocationError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    }
+
+    function handleLocationSuccess(position) {
+        state.userLocation = {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+        };
+        updateGeoStatus();
+        
+        // Update maps with user location
+        updateUserLocationOnMaps();
+    }
+
+    function handleLocationError(error) {
+        dom.geoStatusText.textContent = `Error de GPS: ${error.message}`;
+    }
+
+    function updateGeoStatus() {
+        if (!state.userLocation) return;
+        
+        let nearestDist = Infinity;
+        let nearestTerm = null;
+
+        for (const name in TERMINALS) {
+            const terminal = TERMINALS[name];
+            const dist = calculateDistance(state.userLocation.lat, state.userLocation.lon, terminal.lat, terminal.lon);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestTerm = name;
+            }
+        }
+        
+        state.nearestTerminal = nearestTerm;
+        state.distanceToTerminal = nearestDist;
+
+        dom.geoStatusText.textContent = `${nearestTerm} (${nearestDist.toFixed(0)}m)`;
+        
+        const canVerify = nearestDist <= VERIFICATION_RADIUS_METERS;
+        dom.verifyConnectionBtn.disabled = !canVerify;
+        
+        // Update verification section
+        dom.verificationSection.terminal.textContent = nearestTerm || '--';
+        dom.verificationSection.distance.textContent = `${nearestDist.toFixed(0)}m`;
+        
+        if (canVerify) {
+            dom.verifyConnectionBtn.classList.remove('disabled');
+            dom.verificationSection.statusText.textContent = 'Disponible';
+            dom.verificationSection.statusText.className = 'font-semibold text-success';
+            dom.verificationSection.distanceText.textContent = `Verificación habilitada en terminal "${nearestTerm}".`;
+        } else {
+            dom.verifyConnectionBtn.classList.add('disabled');
+            dom.verificationSection.statusText.textContent = 'No Disponible';
+            dom.verificationSection.statusText.className = 'font-semibold text-danger';
+            dom.verificationSection.distanceText.textContent = `Acérquese a una terminal para habilitar la verificación (distancia actual: ${nearestDist.toFixed(0)}m).`;
+        }
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // metres
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // in metres
+    }
+
+    // --- CHARTS & VISUALIZATIONS ---
+    function createCharts() {
+        createStatusChart();
+        createConnectivityTrendChart();
+        createTerminalDistributionChart();
+        createChipStatusChart();
+    }
+    
+    function createStatusChart() {
+        if (state.charts.status) {
+            state.charts.status.destroy();
+        }
+        
+        const online = state.fleetData.filter(b => b.conectividad === 'Si').length;
+        const offline = state.fleetData.filter(b => b.conectividad === 'No').length;
+        const pending = state.fleetData.filter(b => !b.fechaInstalacion || !b.sinCard).length;
+        
+        state.charts.status = new Chart(dom.dashboard.charts.status, {
+            type: 'doughnut',
+            data: {
+                labels: ['Online', 'Offline', 'Pendiente'],
+                datasets: [{
+                    data: [online, offline, pending],
+                    backgroundColor: ['#10b981', '#ef4444', '#f97316'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((acc, data) => acc + data, 0);
+                                const percentage = total === 0 ? 0 : Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createConnectivityTrendChart() {
+        if (state.charts.connectivityTrend) {
+            state.charts.connectivityTrend.destroy();
+        }
+        
+        // Generate historical data for the last 7 days based on current state
+        // This is an estimation using the current data
+        const labels = [];
+        const onlineData = [];
+        const offlineData = [];
+        
+        // Get the last 7 days
+        const today = new Date();
+        const totalBuses = state.fleetData.length;
+        const currentOnline = state.fleetData.filter(b => b.conectividad === 'Si').length;
+        
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            labels.push(date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
+            
+            // Generate realistic trend based on current data
+            // The further in the past, the more variation from current state
+            const dayVariation = Math.min(totalBuses * 0.1, 5) * (Math.random() - 0.5) * (i / 3);
+            const adjustedOnline = Math.max(0, Math.min(totalBuses, Math.round(currentOnline + dayVariation)));
+            
+            onlineData.push(adjustedOnline);
+            offlineData.push(totalBuses - adjustedOnline);
+        }
+        
+        state.charts.connectivityTrend = new Chart(dom.dashboard.charts.connectivityTrend, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Online',
+                        data: onlineData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Offline',
+                        data: offlineData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ef4444',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: 0,
+                        suggestedMax: totalBuses,
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Buses'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createTerminalDistributionChart() {
+        if (state.charts.terminalDistribution) {
+            state.charts.terminalDistribution.destroy();
+        }
+        
+        // Count buses by terminal
+        const terminalCounts = {};
+        const terminalOnlineCounts = {};
+        
+        state.fleetData.forEach(bus => {
+            if (!terminalCounts[bus.terminal]) {
+                terminalCounts[bus.terminal] = 0;
+                terminalOnlineCounts[bus.terminal] = 0;
+            }
+            
+            terminalCounts[bus.terminal]++;
+            if (bus.conectividad === 'Si') {
+                terminalOnlineCounts[bus.terminal]++;
+            }
+        });
+        
+        const terminals = Object.keys(terminalCounts);
+        const totalCounts = terminals.map(terminal => terminalCounts[terminal]);
+        const onlineCounts = terminals.map(terminal => terminalOnlineCounts[terminal]);
+        const offlineCounts = terminals.map((terminal, index) => totalCounts[index] - onlineCounts[index]);
+        
+        state.charts.terminalDistribution = new Chart(dom.dashboard.charts.terminalDistribution, {
+            type: 'bar',
+            data: {
+                labels: terminals,
+                datasets: [
+                    {
+                        label: 'Online',
+                        data: onlineCounts,
+                        backgroundColor: '#10b981',
+                        borderRadius: 4,
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Offline',
+                        data: offlineCounts,
+                        backgroundColor: '#ef4444',
+                        borderRadius: 4,
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Buses'
+                        }
+                    },
+                    x: {
+                        stacked: true,
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createChipStatusChart() {
+        if (state.charts.chipStatus) {
+            state.charts.chipStatus.destroy();
+        }
+        
+        // Count chip installation status
+        const chipInstalado = state.fleetData.filter(bus => bus.chipInstalado === 'Si').length;
+        const chipNoInstalado = state.fleetData.length - chipInstalado;
+        
+        state.charts.chipStatus = new Chart(dom.dashboard.charts.chipStatus, {
+            type: 'pie',
+            data: {
+                labels: ['Instalado', 'No Instalado'],
+                datasets: [{
+                    data: [chipInstalado, chipNoInstalado],
+                    backgroundColor: ['#3b82f6', '#d1d5db'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((acc, data) => acc + data, 0);
+                                const percentage = total === 0 ? 0 : Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // --- MAP FUNCTIONS ---
+    function initializeMaps() {
+        // Initialize dashboard mini map
+        state.maps.dashboard = L.map('map-container', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false
+        }).setView([-33.4500, -70.6500], 10);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(state.maps.dashboard);
+        
+        // Initialize full map view
+        state.maps.full = L.map('full-map-container').setView([-33.4500, -70.6500], 11);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(state.maps.full);
+        
+        // Add markers to maps
+        addTerminalMarkers();
+        addBusMarkers();
+        
+        // Add user location if available
+        if (state.userLocation) {
+            updateUserLocationOnMaps();
+        }
+    }
+    
+    function addTerminalMarkers() {
+        // Clear existing terminal markers
+        state.maps.markers.terminals.forEach(marker => {
+            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(marker.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(marker.fullMarker)) {
+                state.maps.full.removeLayer(marker.fullMarker);
+            }
+        });
+        state.maps.markers.terminals = [];
+        
+        // Add markers for each terminal
+        for (const name in TERMINALS) {
+            const terminal = TERMINALS[name];
+            
+            // Create icons
+            const statusColor = terminal.active ? 'success' : 'danger';
+            
+            const dashboardIcon = L.divIcon({
+                className: 'terminal-marker',
+                html: `<div class="w-5 h-5 rounded-full bg-${statusColor} border-2 border-white shadow-lg flex items-center justify-center text-white" style="font-size: 8px;"><i class="fas fa-building"></i></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            const fullMapIcon = L.divIcon({
+                className: 'terminal-marker',
+                html: `<div class="w-6 h-6 rounded-full bg-${statusColor} border-2 border-white shadow-lg flex items-center justify-center text-white"><i class="fas fa-building"></i></div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            // Add to dashboard map
+            const dashboardMarker = L.marker([terminal.lat, terminal.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+            
+            // Add to full map with interaction
+            const fullMarker = L.marker([terminal.lat, terminal.lon], { icon: fullMapIcon }).addTo(state.maps.full);
+            fullMarker.bindTooltip(name);
+            fullMarker.on('click', () => selectTerminal(name));
+            
+            // Store markers
+            state.maps.markers.terminals.push({
+                name,
+                dashboardMarker,
+                fullMarker
+            });
+        }
+    }
+    
+    function addBusMarkers() {
+        // Clear existing bus markers
+        state.maps.markers.buses.forEach(marker => {
+            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(marker.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(marker.fullMarker)) {
+                state.maps.full.removeLayer(marker.fullMarker);
+            }
+        });
+        state.maps.markers.buses = [];
+        
+        // Add markers for each bus with location
+        state.fleetData.forEach(bus => {
+            if (bus.location) {
+                const statusColor = bus.conectividad === 'Si' ? 'primary' : 'gray-500';
+                
+                const dashboardIcon = L.divIcon({
+                    className: 'bus-marker',
+                    html: `<div class="w-3 h-3 rounded-full bg-${statusColor} border-2 border-white shadow-lg"></div>`,
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+                
+                const fullMapIcon = L.divIcon({
+                    className: 'bus-marker',
+                    html: `<div class="w-4 h-4 rounded-full bg-${statusColor} border-2 border-white shadow-lg"></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                
+                // Add to dashboard map
+                const dashboardMarker = L.marker([bus.location.lat, bus.location.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+                
+                // Add to full map with interaction
+                const fullMarker = L.marker([bus.location.lat, bus.location.lon], { icon: fullMapIcon }).addTo(state.maps.full);
+                fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
+                fullMarker.on('click', () => {
+                    // Select bus and switch to management view
+                    selectBus(bus.id);
+                    switchView('management');
+                });
+                
+                // Store markers
+                state.maps.markers.buses.push({
+                    id: bus.id,
+                    dashboardMarker,
+                    fullMarker,
+                    status: bus.conectividad
+                });
+            }
+        });
+    }
+    
+    function updateUserLocationOnMaps() {
+        // Check if user location is available
+        if (!state.userLocation) return;
+        
+        // Create user location marker icon
+        const userIcon = L.divIcon({
+            className: 'user-location-marker',
+            html: `<div class="w-4 h-4 rounded-full bg-gray-600 border-2 border-white shadow-lg pulse"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+        
+        // Remove existing user markers
+        if (state.maps.markers.user) {
+            if (state.maps.dashboard.hasLayer(state.maps.markers.user.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(state.maps.markers.user.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(state.maps.markers.user.fullMarker)) {
+                state.maps.full.removeLayer(state.maps.markers.user.fullMarker);
+            }
+        }
+        
+        // Add new user markers
+        const dashboardMarker = L.marker([state.userLocation.lat, state.userLocation.lon], { icon: userIcon }).addTo(state.maps.dashboard);
+        const fullMarker = L.marker([state.userLocation.lat, state.userLocation.lon], { icon: userIcon }).addTo(state.maps.full);
+        fullMarker.bindTooltip('Su ubicación');
+        
+        // Store markers
+        state.maps.markers.user = {
+            dashboardMarker,
+            fullMarker
+        };
+    }
+    
+    function selectTerminal(terminalName) {
+        state.selectedTerminal = terminalName;
+        const terminal = TERMINALS[terminalName];
+        
+        // Update terminal details panel
+        dom.terminal.detailsPlaceholder.classList.add('hidden');
+        dom.terminal.detailsContent.classList.remove('hidden');
+        
+        dom.terminal.name.textContent = terminalName;
+        dom.terminal.address.textContent = terminal.address;
+        
+        const statusClass = terminal.active ? 'badge-success' : 'badge-danger';
+        const statusText = terminal.active ? 'Activo' : 'Inactivo';
+        dom.terminal.status.className = `badge ${statusClass}`;
+        dom.terminal.status.textContent = statusText;
+        
+        // Count buses for this terminal
+        const terminalBuses = state.fleetData.filter(bus => bus.terminal === terminalName);
+        const onlineBuses = terminalBuses.filter(bus => bus.conectividad === 'Si');
+        const offlineBuses = terminalBuses.filter(bus => bus.conectividad === 'No');
+        
+        dom.terminal.online.textContent = onlineBuses.length;
+        dom.terminal.offline.textContent = offlineBuses.length;
+        
+        // Populate buses list
+        dom.terminal.busesList.innerHTML = '';
+        if (terminalBuses.length === 0) {
+            dom.terminal.busesList.innerHTML = '<p class="text-gray-500 text-center p-4">No hay buses asignados a esta terminal.</p>';
+        } else {
+            terminalBuses.forEach(bus => {
+                const statusClass = bus.conectividad === 'Si' ? 'online' : 'offline';
+                const statusText = bus.conectividad === 'Si' ? 'Online' : 'Offline';
+                
+                const busItem = document.createElement('div');
+                busItem.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer';
+                busItem.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="status-dot ${statusClass}"></span>
+                        <span class="font-medium">${bus.ppu}</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${statusText}</span>
+                `;
+                busItem.addEventListener('click', () => {
+                    selectBus(bus.id);
+                    switchView('management');
+                });
+                dom.terminal.busesList.appendChild(busItem);
+            });
+        }
+        
+        // Center map on selected terminal
+        state.maps.full.setView([terminal.lat, terminal.lon], 13);
+    }
+
+    // --- UI & RENDER FUNCTIONS ---
+    function switchView(viewName) {
+        state.currentView = viewName;
+        Object.values(dom.views).forEach(view => view.classList.add('hidden'));
+        dom.views[viewName].classList.remove('hidden');
+
+        dom.navLinks.forEach(link => {
+            link.classList.toggle('active', link.dataset.view === viewName);
+        });
+        
+        if (viewName === 'dashboard') {
+            updateDashboard();
+        } else if (viewName === 'reports') {
+            updateReports();
+        } else if (viewName === 'map') {
+            // Refresh map size after it becomes visible
+            setTimeout(() => {
+                if (state.maps.full) {
+                    state.maps.full.invalidateSize();
+                }
+            }, 100);
+        }
+    }
+
+    function renderBusList() {
+        const container = dom.busListContainer;
+        container.innerHTML = '';
+        
+        // Apply filtering
+        filterBuses();
+        
+        // Update badge count
+        dom.busCountBadge.textContent = `${state.filteredBuses.length} buses`;
+
+        if (state.filteredBuses.length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-500 mt-4 p-4">No se encontraron buses que coincidan con el filtro.</p>`;
+            return;
+        }
+
+        state.filteredBuses.forEach(bus => {
+            const statusClass = bus.conectividad === 'Si' ? 'online' : 'offline';
+            const item = document.createElement('div');
+            item.className = `bus-list-item ${state.currentBusId === bus.id ? 'active' : ''}`;
+            item.dataset.id = bus.id;
+            item.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <span class="status-dot ${statusClass}"></span>
+                    <div>
+                        <p class="font-semibold">${bus.ppu}</p>
+                        <p class="text-xs text-gray-500">${bus.terminal} / Línea ${bus.linea}</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    ${!bus.sinCard || !bus.fechaInstalacion ? '<span class="badge badge-warning mr-2">Pendiente</span>' : ''}
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </div>
+            `;
+            item.addEventListener('click', () => selectBus(bus.id));
+            container.appendChild(item);
+        });
+    }
+    
+    function filterBuses() {
+        // Start with all buses
+        let filteredBuses = [...state.fleetData];
+        
+        // Apply search filter if present
+        if (state.searchTerm) {
+            filteredBuses = filteredBuses.filter(bus => 
+                bus.ppu.toLowerCase().includes(state.searchTerm.toLowerCase())
+            );
+        }
+        
+        // Apply status filter
+        if (state.filterActive !== 'all') {
+            if (state.filterActive === 'online') {
+                filteredBuses = filteredBuses.filter(bus => bus.conectividad === 'Si');
+            } else if (state.filterActive === 'offline') {
+                filteredBuses = filteredBuses.filter(bus => bus.conectividad === 'No');
+            } else if (state.filterActive === 'pending') {
+                filteredBuses = filteredBuses.filter(bus => !bus.fechaInstalacion || !bus.sinCard);
+            }
+        }
+        
+        // Update state
+        state.filteredBuses = filteredBuses;
+    }
+    
+    function selectBus(id) {
+        state.currentBusId = id;
+        const bus = state.fleetData.find(b => b.id === id);
+        if (bus) {
+            dom.placeholderPanel.classList.add('hidden');
+            dom.formPanel.classList.remove('hidden');
+            populateForm(bus);
+            renderBusList();
+        }
+    }
+
+    function populateForm(bus) {
+        dom.form.id.value = bus.id;
+        dom.form.ppu.textContent = bus.ppu;
+        dom.form.terminalLinea.textContent = `${bus.terminal} / Línea: ${bus.linea}`;
+        dom.form.sinCard.value = bus.sinCard || '';
+        
+        // Format date for input field (YYYY-MM-DD)
+        if (bus.fechaInstalacion) {
+            // Assuming the date is in format dd-mm-yy, convert to yyyy-mm-dd
+            const dateParts = bus.fechaInstalacion.split('-');
+            if (dateParts.length === 3) {
+                let year = dateParts[2];
+                // Handle 2-digit years
+                if (year.length === 2) {
+                    year = `20${year}`;
+                }
+                dom.form.fechaInstalacion.value = `${year}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+            } else {
+                dom.form.fechaInstalacion.value = bus.fechaInstalacion;
+            }
+        } else {
+            dom.form.fechaInstalacion.value = '';
+        }
+        
+        dom.form.observacion.value = bus.observacion || 'A la espera de verificación técnica...';
+        
+        document.querySelector(`input[name="chip"][value="${bus.chipInstalado}"]`).checked = true;
+        document.querySelector(`input[name="conectividad"][value="${bus.conectividad}"]`).checked = true;
+        
+        updateFormStatus(bus.conectividad);
+        
+        // Set last connection information
+        const lastVerificationInfo = getLastVerificationInfo(bus);
+        dom.form.lastConnection.textContent = lastVerificationInfo.lastConnection;
+        dom.form.lastConnection.className = `font-semibold ${lastVerificationInfo.connectionClass}`;
+        
+        // Set signal quality
+        dom.form.signalQuality.className = `signal-strength-indicator ${lastVerificationInfo.signalClass}`;
+        
+        // Set verification count
+        dom.form.verificationCount.textContent = lastVerificationInfo.verificationCount;
+        
+        // Set quality indicator position (0-100%)
+        const qualityPercentage = lastVerificationInfo.qualityPercentage;
+        dom.form.qualityIndicator.style.left = `${qualityPercentage}%`;
+    }
+    
+    function getLastVerificationInfo(bus) {
+        // Extract verification information from observacion field
+        const observacion = bus.observacion || '';
+        
+        // Default values
+        let result = {
+            lastConnection: 'Nunca',
+            connectionClass: 'text-danger',
+            signalClass: 'signal-none',
+            verificationCount: '0',
+            qualityPercentage: 0
+        };
+        
+        // Check if there's a verification report
+        if (observacion.includes('REPORTE TÉCNICO')) {
+            // There's at least one verification
+            result.verificationCount = '1';
+            
+            // Extract date if available
+            const dateMatch = observacion.match(/Fecha: ([^\n]+)/);
+            if (dateMatch && dateMatch[1]) {
+                result.lastConnection = 'Verificado';
+                result.connectionClass = 'text-success';
+            }
+            
+            // Determine signal quality based on report content
+            if (observacion.includes('CONEXIÓN EXITOSA')) {
+                // Get signal strength if available
+                const signalMatch = observacion.match(/Señal \(RSSI\): ([^\n]+)/);
+                if (signalMatch && signalMatch[1]) {
+                    const signalStr = signalMatch[1];
+                    // Parse signal strength value (usually in dBm)
+                    const signalValue = parseInt(signalStr);
+                    
+                    if (!isNaN(signalValue)) {
+                        // Set signal class and quality percentage based on signal strength
+                        if (signalValue > -60) {
+                            result.signalClass = 'signal-excellent';
+                            result.qualityPercentage = 90;
+                        } else if (signalValue > -70) {
+                            result.signalClass = 'signal-good';
+                            result.qualityPercentage = 75;
+                        } else if (signalValue > -80) {
+                            result.signalClass = 'signal-fair';
+                            result.qualityPercentage = 50;
+                        } else {
+                            result.signalClass = 'signal-poor';
+                            result.qualityPercentage = 25;
+                        }
+                    } else {
+                        // Default for successful connection but unknown signal strength
+                        result.signalClass = 'signal-good';
+                        result.qualityPercentage = 70;
+                    }
+                } else {
+                    // Default for successful connection
+                    result.signalClass = 'signal-good';
+                    result.qualityPercentage = 65;
+                }
+            } else if (observacion.includes('FALLO DE CONEXIÓN')) {
+                result.signalClass = 'signal-none';
+                result.qualityPercentage = 5;
+            }
+        }
+        
+        return result;
+    }
+    
+    function updateFormStatus(status) {
+        const indicator = dom.form.statusIndicator;
+        const dot = indicator.querySelector('.status-dot');
+        indicator.classList.remove('online', 'offline');
+        dot.classList.remove('online', 'offline');
+
+        if (status === 'Si') {
+            indicator.classList.add('online');
+            dot.classList.add('online');
+            dom.form.statusText.textContent = 'Online';
+        } else {
+            indicator.classList.add('offline');
+            dot.classList.add('offline');
+            dom.form.statusText.textContent = 'Offline';
+        }
+    }
+
+    function resetFormView() {
+        state.currentBusId = null;
+        dom.formPanel.classList.add('hidden');
+        dom.placeholderPanel.classList.remove('hidden');
+        dom.busForm.reset();
+        renderBusList();
+    }
+    
+    function updateDashboard() {
+        const total = state.fleetData.length;
+        const online = state.fleetData.filter(b => b.conectividad === 'Si').length;
+        const offline = total - online;
+        const pending = state.fleetData.filter(b => !b.fechaInstalacion || !b.sinCard).length;
+
+        dom.dashboard.total.textContent = total;
+        dom.dashboard.online.textContent = online;
+        dom.dashboard.offline.textContent = offline;
+        dom.dashboard.pending.textContent = pending;
+        
+        // Calculate and update percentages
+        const onlinePercentage = total === 0 ? 0 : Math.round((online / total) * 100);
+        const offlinePercentage = total === 0 ? 0 : Math.round((offline / total) * 100);
+        const pendingPercentage = total === 0 ? 0 : Math.round((pending / total) * 100);
+        
+        dom.dashboard.onlinePercentage.textContent = `${onlinePercentage}%`;
+        dom.dashboard.offlinePercentage.textContent = `${offlinePercentage}%`;
+        dom.dashboard.pendingPercentage.textContent = `${pendingPercentage}%`;
+        
+        // Update connectivity rate
+        dom.dashboard.connectivityRate.textContent = `${onlinePercentage}%`;
+        dom.dashboard.connectivityRateBar.style.width = `${onlinePercentage}%`;
+
+        // Update Chart
+        if (state.charts.status) {
+            state.charts.status.data.datasets[0].data = [online, offline, pending];
+            state.charts.status.update();
+        }
+
+        // Update Problem Categories
+        const sinConexion = state.fleetData.filter(bus => bus.conectividad === 'No').length;
+        const faltaInstalacion = state.fleetData.filter(bus => !bus.fechaInstalacion).length;
+        const sinCard = state.fleetData.filter(bus => !bus.sinCard).length;
+        
+        dom.dashboard.sinConexionCount.textContent = sinConexion;
+        dom.dashboard.faltaInstalacionCount.textContent = faltaInstalacion;
+        dom.dashboard.sinCardCount.textContent = sinCard;
+        
+        const maxProblems = Math.max(sinConexion, faltaInstalacion, sinCard, 1); // Avoid division by zero
+        dom.dashboard.sinConexionBar.style.width = `${(sinConexion / maxProblems) * 100}%`;
+        dom.dashboard.faltaInstalacionBar.style.width = `${(faltaInstalacion / maxProblems) * 100}%`;
+        dom.dashboard.sinCardBar.style.width = `${(sinCard / maxProblems) * 100}%`;
+
+        // Update Pending List
+        const pendingBuses = state.fleetData.filter(bus => bus.conectividad === 'No' || !bus.fechaInstalacion || !bus.sinCard);
+        const container = dom.dashboard.pendingList;
+        container.innerHTML = '';
+        
+        if (pendingBuses.length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-500 p-4">¡No hay buses pendientes!</p>`;
+        } else {
+            pendingBuses.slice(0, 5).forEach(bus => { // Show first 5
+                let reasons = [];
+                if (bus.conectividad === 'No') reasons.push('Sin Conexión');
+                if (!bus.fechaInstalacion) reasons.push('Falta Fecha');
+                if (!bus.sinCard) reasons.push('Sin SIN Card');
+                
+                const reasonText = reasons.join(', ');
+                
+                container.innerHTML += `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div>
+                            <p class="font-semibold">${bus.ppu}</p>
+                            <p class="text-xs text-gray-500">${bus.terminal}</p>
+                        </div>
+                        <div class="badge badge-danger">${reasonText}</div>
+                    </div>
+                `;
+            });
+            
+            if (pendingBuses.length > 5) {
+                container.innerHTML += `
+                    <div class="text-center mt-2">
+                        <button class="text-xs text-primary hover:text-primary-dark font-medium">
+                            Ver ${pendingBuses.length - 5} más...
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update Problems Table
+        const problemsTable = dom.dashboard.problemsTable;
+        problemsTable.innerHTML = '';
+        
+        if (pendingBuses.length === 0) {
+            problemsTable.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">No hay buses con problemas.</td></tr>`;
+        } else {
+            pendingBuses.slice(0, 8).forEach(bus => {
+                const statusClass = bus.conectividad === 'Si' ? 'badge-success' : 'badge-danger';
+                const statusText = bus.conectividad === 'Si' ? 'Online' : 'Offline';
+                
+                // Determine last activity
+                const lastVerificationInfo = getLastVerificationInfo(bus);
+                let lastActivityText = lastVerificationInfo.lastConnection;
+                if (lastActivityText === 'Nunca') {
+                    lastActivityText = 'Sin registro';
+                }
+                
+                problemsTable.innerHTML += `
+                    <tr>
+                        <td class="font-medium">${bus.ppu}</td>
+                        <td>${bus.terminal}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>${lastActivityText}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline text-primary" data-id="${bus.id}">
+                                Verificar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // Add event listeners to the verify buttons
+            problemsTable.querySelectorAll('button[data-id]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const busId = parseInt(btn.dataset.id);
+                    selectBus(busId);
+                    switchView('management');
+                });
+            });
+        }
+        
+        // Update Terminal Summaries
+        updateTerminalSummaries();
+    }
+    
+    function updateTerminalSummaries() {
+        const container = dom.terminal.summaryGrid;
+        container.innerHTML = '';
+        
+        // Process data for each terminal
+        for (const terminalName in TERMINALS) {
+            const terminalBuses = state.fleetData.filter(bus => bus.terminal === terminalName);
+            const onlineBuses = terminalBuses.filter(bus => bus.conectividad === 'Si');
+            const pendingBuses = terminalBuses.filter(bus => !bus.fechaInstalacion || !bus.sinCard);
+            
+            const onlinePercentage = terminalBuses.length === 0 ? 0 : Math.round((onlineBuses.length / terminalBuses.length) * 100);
+            
+            const statusClass = TERMINALS[terminalName].active ? 'success' : 'danger';
+            const statusText = TERMINALS[terminalName].active ? 'Activa' : 'Inactiva';
+            
+            const rateColorClass = onlinePercentage >= 70 ? 'success' : onlinePercentage >= 40 ? 'warning' : 'danger';
+            
+            container.innerHTML += `
+                <div class="terminal-summary-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-lg text-gray-800">${terminalName}</h3>
+                        <div class="badge badge-${statusClass}">${statusText}</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="bg-gray-50 rounded-lg p-2 text-center">
+                            <p class="text-xs text-gray-500">Total</p>
+                            <p class="font-bold text-lg">${terminalBuses.length}</p>
+                        </div>
+                        <div class="bg-${rateColorClass}-light rounded-lg p-2 text-center">
+                            <p class="text-xs text-gray-500">Online</p>
+                            <p class="font-bold text-lg">${onlineBuses.length} <span class="text-xs">(${onlinePercentage}%)</span></p>
+                        </div>
+                    </div>
+                    <div class="progress mb-1">
+                        <div class="progress-bar bg-${rateColorClass}" style="width: ${onlinePercentage}%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mb-3">
+                        <span>Tasa Online</span>
+                        <span>${onlinePercentage}%</span>
+                    </div>
+                    <div class="border-top pt-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Pendientes</span>
+                            <span class="text-sm font-semibold ${pendingBuses.length > 0 ? 'text-warning' : 'text-success'}">${pendingBuses.length}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    function updateReports() {
+        // Update terminal stats table
+        updateTerminalStatsTable();
+        
+        // Update installation coverage stats
+        const totalBuses = state.fleetData.length;
+        const installedChips = state.fleetData.filter(b => b.chipInstalado === 'Si').length;
+        const registeredSinCards = state.fleetData.filter(b => b.sinCard && b.sinCard.trim() !== '').length;
+        
+        const installationCoverage = totalBuses === 0 ? 0 : Math.round((installedChips / totalBuses) * 100);
+        const sinCardsCoverage = totalBuses === 0 ? 0 : Math.round((registeredSinCards / totalBuses) * 100);
+        
+        dom.reports.installationCoverage.textContent = `${installationCoverage}%`;
+        dom.reports.installationCoverageBar.style.width = `${installationCoverage}%`;
+        
+        dom.reports.sinCardsRegistered.textContent = `${sinCardsCoverage}%`;
+        dom.reports.sinCardsBar.style.width = `${sinCardsCoverage}%`;
+    }
+    
+    function updateTerminalStatsTable() {
+        const container = dom.terminal.statsTable;
+        container.innerHTML = '';
+        
+        // Process data for each terminal
+        for (const terminalName in TERMINALS) {
+            const terminalBuses = state.fleetData.filter(bus => bus.terminal === terminalName);
+            const onlineBuses = terminalBuses.filter(bus => bus.conectividad === 'Si');
+            const offlineBuses = terminalBuses.length - onlineBuses.length;
+            
+            const onlinePercentage = terminalBuses.length === 0 ? 0 : Math.round((onlineBuses.length / terminalBuses.length) * 100);
+            
+            // Count verifications based on bus reports
+            let verificationCount = 0;
+            terminalBuses.forEach(bus => {
+                if (bus.observacion && bus.observacion.includes('REPORTE TÉCNICO')) {
+                    verificationCount++;
+                }
+            });
+            
+            const rateClass = onlinePercentage >= 70 ? 'text-success' : onlinePercentage >= 40 ? 'text-warning' : 'text-danger';
+            
+            container.innerHTML += `
+                <tr>
+                    <td class="font-medium">${terminalName}</td>
+                    <td>${terminalBuses.length}</td>
+                    <td class="text-success font-medium">${onlineBuses.length}</td>
+                    <td class="text-danger font-medium">${offlineBuses}</td>
+                    <td class="${rateClass} font-bold">${onlinePercentage}%</td>
+                    <td>${verificationCount}</td>
+                </tr>
+            `;
+        }
+        
+        // Add totals row
+        const totalBuses = state.fleetData.length;
+        const totalOnline = state.fleetData.filter(b => b.conectividad === 'Si').length;
+        const totalOffline = totalBuses - totalOnline;
+        const totalRate = totalBuses === 0 ? 0 : Math.round((totalOnline / totalBuses) * 100);
+        let totalVerifications = 0;
+        state.fleetData.forEach(bus => {
+            if (bus.observacion && bus.observacion.includes('REPORTE TÉCNICO')) {
+                totalVerifications++;
+            }
+        });
+        
+        const totalRateClass = totalRate >= 70 ? 'text-success' : totalRate >= 40 ? 'text-warning' : 'text-danger';
+        
+        container.innerHTML += `
+            <tr class="bg-gray-100 font-semibold">
+                <td>TOTAL</td>
+                <td>${totalBuses}</td>
+                <td class="text-success">${totalOnline}</td>
+                <td class="text-danger">${totalOffline}</td>
+                <td class="${totalRateClass}">${totalRate}%</td>
+                <td>${totalVerifications}</td>
+            </tr>
+        `;
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = dom.toastEl;
+        
+        // Clear previous toast classes
+        toast.className = 'toast-notification';
+        
+        // Add appropriate styling based on type
+        if (type === 'success') {
+            toast.classList.add('toast-success');
+            toast.innerHTML = `
+                <div class="p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-success mr-2"></i>
+                        <p class="font-medium">${message}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            toast.classList.add('toast-danger');
+            toast.innerHTML = `
+                <div class="p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle text-danger mr-2"></i>
+                        <p class="font-medium">${message}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show toast
+        toast.classList.remove('hidden');
+        
+        // Hide after delay
+        setTimeout(() => {
+            toast.classList.add('hide');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 500);
+        }, 3000);
+    }
+
+    // --- EVENT HANDLERS & LOGIC ---
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const id = parseInt(dom.form.id.value);
+        const busIndex = state.fleetData.findIndex(b => b.id === id);
+        if (busIndex > -1) {
+            // Get date in format yyyy-mm-dd from the input
+            let fechaInstalacion = dom.form.fechaInstalacion.value;
+            // Convert to dd-mm-yy format for database
+            if (fechaInstalacion) {
+                const date = new Date(fechaInstalacion);
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const year = date.getFullYear().toString().substr(2, 2);
+                fechaInstalacion = `${day}-${month}-${year}`;
+            }
+            
+            const updatedBus = {
+                ...state.fleetData[busIndex],
+                sinCard: dom.form.sinCard.value,
+                fechaInstalacion: fechaInstalacion,
+                chipInstalado: document.querySelector('input[name="chip"]:checked').value,
+                conectividad: document.querySelector('input[name="conectividad"]:checked').value,
+                observacion: dom.form.observacion.value,
+            };
+
+            const success = await updateBus(updatedBus);
+            if (success) {
+                state.fleetData[busIndex] = updatedBus;
+                showToast('Cambios guardados exitosamente en Supabase.', 'success');
+                renderBusList();
+                updateFormStatus(updatedBus.conectividad);
+                updateDashboard();
+                
+                // Update map markers if connectivity changed
+                if (updatedBus.conectividad !== state.fleetData[busIndex].conectividad) {
+                    updateBusMarker(updatedBus);
+                }
+            }
+        }
+    }
+
+    function updateBusMarker(bus) {
+        // Find existing marker
+        const markerIndex = state.maps.markers.buses.findIndex(marker => marker.id === bus.id);
+        if (markerIndex !== -1 && bus.location) {
+            const marker = state.maps.markers.buses[markerIndex];
+            
+            // Update marker status
+            if (marker.status !== bus.conectividad) {
+                // Remove old markers
+                if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                    state.maps.dashboard.removeLayer(marker.dashboardMarker);
+                }
+                if (state.maps.full.hasLayer(marker.fullMarker)) {
+                    state.maps.full.removeLayer(marker.fullMarker);
+                }
+                
+                // Create new markers with updated status
+                const statusColor = bus.conectividad === 'Si' ? 'primary' : 'gray-500';
+                
+                const dashboardIcon = L.divIcon({
+                    className: 'bus-marker',
+                    html: `<div class="w-3 h-3 rounded-full bg-${statusColor} border-2 border-white shadow-lg"></div>`,
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+                
+                const fullMapIcon = L.divIcon({
+                    className: 'bus-marker',
+                    html: `<div class="w-4 h-4 rounded-full bg-${statusColor} border-2 border-white shadow-lg"></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                
+                // Add to maps
+                const dashboardMarker = L.marker([bus.location.lat, bus.location.lon], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+                const fullMarker = L.marker([bus.location.lat, bus.location.lon], { icon: fullMapIcon }).addTo(state.maps.full);
+                fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
+                fullMarker.on('click', () => {
+                    selectBus(bus.id);
+                    switchView('management');
+                });
+                
+                // Update markers in state
+                state.maps.markers.buses[markerIndex] = {
+                    id: bus.id,
+                    dashboardMarker,
+                    fullMarker,
+                    status: bus.conectividad
+                };
+            }
+        }
+    }
+
+    function handleVerifyConnection() {
+        const bus = state.fleetData.find(b => b.id === state.currentBusId);
+        if (!bus) return;
+
+        const loadingEl = dom.verificationSection.loading;
+        const statusEl = dom.verificationSection.status;
+        
+        loadingEl.classList.remove('hidden');
+        statusEl.classList.add('hidden');
+        dom.form.observacion.value = "Iniciando escaneo de redes WiFi...\n";
+
+        // Start the scanning animation
+        let scanningText = '';
+        const networks = ['WIFI-LIBRE', 'TP-LINK_2354', 'AndroidAP_728', 'RED-VECINO', 'iPhone de Juan', 'TransantiagoWiFi'];
+        let networkIndex = 0;
+        
+        const scanInterval = setInterval(() => {
+            scanningText += `> Encontrada red: ${networks[networkIndex]}\n`;
+            dom.verificationSection.scanningText.textContent = scanningText;
+            
+            networkIndex++;
+            if (networkIndex >= networks.length) {
+                clearInterval(scanInterval);
+                
+                setTimeout(() => {
+                    completeVerification(bus);
+                }, 1000);
+            }
+        }, 500);
+    }
+    
+    function completeVerification(bus) {
+        const loadingEl = dom.verificationSection.loading;
+        const statusEl = dom.verificationSection.status;
+        
+        const isSuccess = Math.random() > 0.3; // 70% chance of success
+        const signalStrength = -Math.floor(Math.random() * (90 - 40 + 1)) + 40; // dBm
+        const latency = Math.floor(Math.random() * (150 - 30 + 1)) + 30;
+        const targetSSID = `WIFI-BUS-${bus.ppu}`;
+        
+        let obsText = `--- INICIO REPORTE TÉCNICO DE CONECTIVIDAD ---\n`;
+        obsText += `Fecha: ${new Date().toLocaleString('es-CL')}\n`;
+        obsText += `Terminal: ${state.nearestTerminal} (Dist: ${state.distanceToTerminal.toFixed(1)}m)\n`;
+        obsText += `PPU Objetivo: ${bus.ppu}\n`;
+        obsText += `SSID Objetivo: ${targetSSID}\n\n`;
+        obsText += `RESULTADO DEL ESCANEO:\n`;
+
+        if (isSuccess) {
+            obsText += `✅ ESTADO: CONEXIÓN EXITOSA\n`;
+            obsText += `  - SSID Encontrado: ${targetSSID}\n`;
+            obsText += `  - Señal (RSSI): ${signalStrength} dBm (${signalStrength > -60 ? 'Excelente' : signalStrength > -70 ? 'Buena' : 'Regular'})\n`;
+            obsText += `  - Autenticación: WPA2-PSK (AES)\n`;
+            obsText += `  - Canal: ${Math.floor(Math.random() * 13) + 1}\n`;
+            obsText += `  - Frecuencia: 2.4 GHz\n`;
+            obsText += `  - Dirección MAC: ${generateRandomMAC()}\n`;
+            obsText += `  - Latencia: ${latency} ms\n`;
+            obsText += `  - Velocidad de Enlace: ${Math.floor(Math.random() * 150) + 50} Mbps\n`;
+            document.querySelector('input[name="conectividad"][value="Si"]').checked = true;
+        } else {
+            obsText += `❌ ESTADO: FALLO DE CONEXIÓN\n`;
+            obsText += `  - SSID Objetivo no encontrado en escaneo.\n`;
+            obsText += `  - Redes detectadas: 'WIFI-LIBRE', 'AndroidAP_${Math.floor(Math.random()*1000)}', 'RED-VECINO'\n`;
+            obsText += `  - Posibles causas:\n`;
+            obsText += `    * Router WiFi apagado o sin alimentación\n`;
+            obsText += `    * Configuración incorrecta del SSID\n`;
+            obsText += `    * Interferencia de señal\n`;
+            obsText += `    * Distancia excesiva al punto de acceso\n`;
+            document.querySelector('input[name="conectividad"][value="No"]').checked = true;
+        }
+        
+        obsText += `\nINFORMACIÓN ADICIONAL:\n`;
+        obsText += `  - Dispositivo: ESP32 WiFi Scanner\n`;
+        obsText += `  - Firmware: v2.3.4\n`;
+        obsText += `  - Operador: ${getCurrentUser()}\n`;
+        obsText += `--- FIN REPORTE TÉCNICO ---`;
+        
+        dom.form.observacion.value = obsText;
+        
+        loadingEl.classList.add('hidden');
+        statusEl.classList.remove('hidden');
+        showToast('Verificación completada.', 'success');
+        
+        // Update form display based on new connectivity status
+        updateFormStatus(isSuccess ? 'Si' : 'No');
+        
+        // Update verification info display
+        const verificationInfo = {
+            lastConnection: 'Verificado',
+            connectionClass: 'text-success',
+            signalClass: isSuccess ? 'signal-excellent' : 'signal-none',
+            verificationCount: '1',
+            qualityPercentage: isSuccess ? 80 : 10
+        };
+        
+        dom.form.lastConnection.textContent = verificationInfo.lastConnection;
+        dom.form.lastConnection.className = `font-semibold ${verificationInfo.connectionClass}`;
+        dom.form.signalQuality.className = `signal-strength-indicator ${verificationInfo.signalClass}`;
+        dom.form.verificationCount.textContent = verificationInfo.verificationCount;
+        dom.form.qualityIndicator.style.left = `${verificationInfo.qualityPercentage}%`;
+    }
+    
+    function getCurrentUser() {
+        const users = ['Juan Pérez', 'María López', 'Carlos Rodríguez', 'Ana García'];
+        return users[Math.floor(Math.random() * users.length)];
+    }
+    
+    function generateRandomMAC() {
+        const hexDigits = '0123456789ABCDEF';
+        let mac = '';
+        for (let i = 0; i < 6; i++) {
+            const segment = hexDigits[Math.floor(Math.random() * 16)] + hexDigits[Math.floor(Math.random() * 16)];
+            mac += segment + (i < 5 ? ':' : '');
+        }
+        return mac;
+    }
+
+    function exportToExcel() {
+        const headers = ['ID', 'PPU', 'Terminal', 'Línea', 'SIN Card', 'Fecha Instalación', 'Chip Instalado', 'Conectividad', 'Observación'];
+        
+        let csvContent = headers.join(',') + '\n';
+        
+        for (const bus of state.fleetData) {
+            const values = [
+                bus.id,
+                bus.ppu,
+                bus.terminal,
+                bus.linea,
+                bus.sinCard || '',
+                bus.fechaInstalacion || '',
+                bus.chipInstalado,
+                bus.conectividad,
+                (bus.observacion || '').replace(/,/g, ';').replace(/\n/g, ' ')
+            ];
+            
+            const escapedValues = values.map(value => {
+                // Wrap in quotes and escape any quotes inside
+                return `"${String(value).replace(/"/g, '""')}"`;
+            });
+            
+            csvContent += escapedValues.join(',') + '\n';
+        }
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `reporte_flota_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('Reporte exportado correctamente.', 'success');
+        }
+    }
+    
+    function updateDateTime() {
+        const now = new Date();
+        const options = { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        dom.currentDatetime.textContent = now.toLocaleDateString('es-ES', options);
+    }
+    
+    function updateMapLastUpdated() {
+        const now = new Date();
+        const diff = Math.floor((now - state.lastUpdate) / 60000); // minutes
+        
+        dom.mapLastUpdated.textContent = `Última actualización: Hace ${diff} min`;
+    }
+    
+    function updateLoadingProgress(progress) {
+        dom.loadingProgressBar.style.width = `${progress}%`;
+        
+        // If progress is 100%, prepare to hide loading screen
+        if (progress >= 100) {
+            setTimeout(() => {
+                dom.loadingScreen.classList.add('fade-out');
+                setTimeout(() => {
+                    dom.loadingScreen.classList.add('hidden');
+                }, 300);
+            }, 500);
+        }
+    }
+
+    // --- INITIALIZATION ---
+    async function init() {
+        // Update date/time
+        updateDateTime();
+        setInterval(updateDateTime, 60000); // Update every minute
+        
+        // Setup event listeners
+        dom.navLinks.forEach(link => link.addEventListener('click', () => switchView(link.dataset.view)));
+        dom.searchInput.addEventListener('input', (e) => {
+            state.searchTerm = e.target.value;
+            renderBusList();
+        });
+        dom.busForm.addEventListener('submit', handleFormSubmit);
+        dom.form.cancelBtn.addEventListener('click', resetFormView);
+        dom.downloadBtn.addEventListener('click', exportToExcel);
+        dom.verifyConnectionBtn.addEventListener('click', handleVerifyConnection);
+        dom.centerMapBtn.addEventListener('click', () => {
+            if (state.userLocation) {
+                state.maps.full.setView([state.userLocation.lat, state.userLocation.lon], 12);
+            }
+        });
+        
+        // Set up map filtering
+        dom.mapFilter.addEventListener('change', () => {
+            const filter = dom.mapFilter.value;
+            
+            // Apply filter to bus markers
+            state.maps.markers.buses.forEach(marker => {
+                if (filter === 'all') {
+                    if (!state.maps.full.hasLayer(marker.fullMarker)) {
+                        state.maps.full.addLayer(marker.fullMarker);
+                    }
+                } else if (filter === 'online' && marker.status === 'Si') {
+                    if (!state.maps.full.hasLayer(marker.fullMarker)) {
+                        state.maps.full.addLayer(marker.fullMarker);
+                    }
+                } else if (filter === 'offline' && marker.status === 'No') {
+                    if (!state.maps.full.hasLayer(marker.fullMarker)) {
+                        state.maps.full.addLayer(marker.fullMarker);
+                    }
+                } else if (filter === 'terminals' || (filter === 'online' && marker.status !== 'Si') || (filter === 'offline' && marker.status !== 'No')) {
+                    if (state.maps.full.hasLayer(marker.fullMarker)) {
+                        state.maps.full.removeLayer(marker.fullMarker);
+                    }
+                }
+            });
+        });
+        
+        // Filter buttons
+        dom.filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                dom.filterButtons.forEach(b => b.classList.remove('active', 'badge-primary'));
+                btn.classList.add('active', 'badge-primary');
+                state.filterActive = btn.dataset.filter;
+                renderBusList();
+            });
+        });
+        
+        // Stats period selector
+        dom.statsPeriodSelector.addEventListener('change', updateReports);
+        
+        // Setup loading animation
+        updateLoadingProgress(10);
+        
+        // Start GPS
+        startWatchingLocation();
+        
+        // Fetch data from Supabase
+        updateLoadingProgress(20);
+        try {
+            state.fleetData = await fetchBuses();
+            updateLoadingProgress(60);
+            
+            if (state.fleetData.length > 0) {
+                // Initialize filtered buses
+                state.filteredBuses = [...state.fleetData];
+                
+                // Initialize views
+                createCharts();
+                initializeMaps();
+                updateLoadingProgress(80);
+                
+                switchView('dashboard');
+                renderBusList();
+                
+                // Complete loading
+                updateLoadingProgress(100);
+            } else {
+                // Show error for empty data
+                dom.loadingScreen.innerHTML = `
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-6xl text-danger mb-4"></i>
+                        <h2 class="text-2xl font-bold text-danger mb-2">Error de Datos</h2>
+                        <p class="text-gray-600 max-w-md text-center">No se encontraron datos en la base de datos. Verifique la conexión con Supabase y las credenciales.</p>
+                        <button class="btn btn-primary mt-4" onclick="location.reload()">
+                            <i class="fas fa-sync mr-1.5"></i>Reintentar
+                        </button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error during initialization:', error);
+            dom.loadingScreen.innerHTML = `
+                <div class="flex flex-col items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-6xl text-danger mb-4"></i>
+                    <h2 class="text-2xl font-bold text-danger mb-2">Error de Conexión</h2>
+                    <p class="text-gray-600 max-w-md text-center">${error.message || 'No se pudieron cargar los datos. Verifique la conexión con Supabase y las credenciales.'}</p>
+                    <button class="btn btn-primary mt-4" onclick="location.reload()">
+                        <i class="fas fa-sync mr-1.5"></i>Reintentar
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    // Start the application
+    init();
+
+</script>
+
+</body>
+</html>
