@@ -3168,26 +3168,15 @@
             accuracy: accuracy
         };
         
-        // Update status with accuracy info
+        // Update status with accuracy info (sin alertas molestas)
         if (accuracy <= 10) {
             dom.geoStatusText.textContent = `GPS Excelente (±${accuracy.toFixed(0)}m)`;
-            showToast(`Precisión GPS excelente: ±${accuracy.toFixed(0)}m`, 'success');
         } else if (accuracy <= 20) {
             dom.geoStatusText.textContent = `GPS Buena (±${accuracy.toFixed(0)}m)`;
-            showToast(`Precisión GPS buena: ±${accuracy.toFixed(0)}m`, 'info');
         } else if (accuracy <= 50) {
             dom.geoStatusText.textContent = `GPS Regular (±${accuracy.toFixed(0)}m)`;
-            showToast(`Precisión GPS regular: ±${accuracy.toFixed(0)}m. Mueva el dispositivo para mejorar la precisión.`, 'warning');
         } else {
             dom.geoStatusText.textContent = `GPS Baja (±${accuracy.toFixed(0)}m)`;
-            showToast(`Precisión GPS baja: ±${accuracy.toFixed(0)}m. Salga al exterior para mejor señal GPS.`, 'warning');
-        }
-        
-        // Show GPS improvement tips for low accuracy
-        if (accuracy > 20) {
-            setTimeout(() => {
-                showToast('💡 Consejos para mejorar GPS: Salga al exterior, evite edificios altos, mantenga el dispositivo estable.', 'info');
-            }, 2000);
         }
         
         updateGeoStatus();
@@ -4095,7 +4084,7 @@
                 state.charts.status.update();
             }
             
-            // Show empty state messages
+            // Show empty state messages (sin alertas)
             dom.dashboard.pendingList.innerHTML = `
                 <div class="text-center p-4 text-gray-500">
                     <i class="fas fa-info-circle text-2xl mb-2"></i>
@@ -4456,7 +4445,6 @@
             const success = await updateBus(updatedBus);
             if (success) {
                 state.fleetData[busIndex] = updatedBus;
-                showToast('Cambios guardados exitosamente en Supabase.', 'success');
                 renderBusList();
                 updateFormStatus(updatedBus.conectividad);
                 updateDashboard();
@@ -4526,13 +4514,11 @@
     function handleVerifyConnection() {
         const bus = state.fleetData.find(b => b.id === state.currentBusId);
         if (!bus) {
-            showToast('Seleccione un bus para verificar la conexión WiFi.', 'warning');
             return;
         }
 
         // Check if user is near a terminal
         if (!state.nearestTerminal || state.distanceToTerminal > VERIFICATION_RADIUS_METERS) {
-            showToast('Debe estar a menos de 10 metros de una terminal para verificar la conexión WiFi.', 'warning');
             return;
         }
 
@@ -4612,7 +4598,6 @@
         
         loadingEl.classList.add('hidden');
         statusEl.classList.remove('hidden');
-        showToast('Verificación completada.', 'success');
         
         // Update form display based on new connectivity status
         updateFormStatus(isSuccess ? 'Si' : 'No');
@@ -4685,8 +4670,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            showToast('Reporte exportado correctamente.', 'success');
         }
     }
     
@@ -4734,10 +4717,8 @@
         const isMobile = window.innerWidth <= 768;
         if (isMobile) {
             document.body.classList.add('mobile-device');
-            // Show mobile-specific instructions
-            showToast('Modo móvil activado. Use la sección de Gestión para registrar información.', 'info');
             
-            // Add GPS refresh button for mobile
+            // Add GPS refresh button for mobile (sin alertas)
             const gpsRefreshBtn = document.createElement('button');
             gpsRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
             gpsRefreshBtn.className = 'btn btn-sm btn-outline ml-2';
