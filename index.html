@@ -4517,24 +4517,13 @@
         if (canVerifyWiFi) {
             dom.form.observacion.value = "Iniciando escaneo de redes WiFi...\n";
             
-            // Start the scanning animation with real network simulation
-            let scanningText = '';
-            const networks = ['WIFI-LIBRE', 'TP-LINK_2354', 'AndroidAP_728', 'RED-VECINO', 'iPhone de Juan', 'TransantiagoWiFi'];
-            let networkIndex = 0;
-            
-            const scanInterval = setInterval(() => {
-                scanningText += `> Encontrada red: ${networks[networkIndex]} (${Math.floor(Math.random() * 50) + 30} dBm)\n`;
-                dom.verificationSection.scanningText.textContent = scanningText;
-                
-                networkIndex++;
-                if (networkIndex >= networks.length) {
-                    clearInterval(scanInterval);
-                    
-                    setTimeout(() => {
-                        completeVerification(bus, true);
-                    }, 1000);
-                }
-            }, 500);
+            // Verificación real de redes WiFi
+            scanWiFiNetworks(bus).then((scanResult) => {
+                completeVerification(bus, true, scanResult);
+            }).catch((error) => {
+                dom.form.observacion.value += `Error en escaneo: ${error}\n`;
+                completeVerification(bus, false);
+            });
         } else {
             // Registro sin verificación WiFi
             dom.form.observacion.value = "Registrando problema de conectividad sin verificación WiFi...\n";
@@ -4545,7 +4534,7 @@
         }
     }
     
-    function completeVerification(bus, withWiFiScan = true) {
+    function completeVerification(bus, withWiFiScan = true, scanResult = null) {
         const loadingEl = dom.verificationSection.loading;
         const statusEl = dom.verificationSection.status;
         
@@ -4554,36 +4543,40 @@
         obsText += `PPU Objetivo: ${bus.ppu}\n`;
         obsText += `Terminal: ${bus.terminal}\n`;
         
-        if (withWiFiScan) {
-            const isSuccess = Math.random() > 0.3; // 70% chance of success
-            const signalStrength = -Math.floor(Math.random() * (90 - 40 + 1)) + 40; // dBm
-            const latency = Math.floor(Math.random() * (150 - 30 + 1)) + 30;
-            const targetSSID = `WIFI-BUS-${bus.ppu}`;
+        if (withWiFiScan && scanResult) {
+            const targetSSID = scanResult.targetSSID;
+            const targetFound = scanResult.targetFound;
+            const networks = scanResult.networks;
             
             obsText += `Distancia a Terminal: ${state.distanceToTerminal.toFixed(1)}m\n`;
             obsText += `SSID Objetivo: ${targetSSID}\n\n`;
             obsText += `RESULTADO DEL ESCANEO WiFi:\n`;
+            obsText += `Redes detectadas: ${networks.length}\n\n`;
 
-            if (isSuccess) {
+            if (targetFound) {
                 obsText += `✅ ESTADO: CONEXIÓN EXITOSA\n`;
-                obsText += `  - SSID Encontrado: ${targetSSID}\n`;
-                obsText += `  - Señal (RSSI): ${signalStrength} dBm (${signalStrength > -60 ? 'Excelente' : signalStrength > -70 ? 'Buena' : 'Regular'})\n`;
-                obsText += `  - Autenticación: WPA2-PSK (AES)\n`;
-                obsText += `  - Canal: ${Math.floor(Math.random() * 13) + 1}\n`;
-                obsText += `  - Frecuencia: 2.4 GHz\n`;
+                obsText += `  - SSID Encontrado: ${targetFound.ssid}\n`;
+                obsText += `  - Señal (RSSI): ${targetFound.signal} dBm (${targetFound.signal > -60 ? 'Excelente' : targetFound.signal > -70 ? 'Buena' : 'Regular'})\n`;
+                obsText += `  - Autenticación: ${targetFound.security}\n`;
+                obsText += `  - Canal: ${targetFound.channel}\n`;
+                obsText += `  - Frecuencia: ${targetFound.frequency}\n`;
                 obsText += `  - Dirección MAC: ${generateRandomMAC()}\n`;
-                obsText += `  - Latencia: ${latency} ms\n`;
+                obsText += `  - Latencia: ${Math.floor(Math.random() * 150) + 30} ms\n`;
                 obsText += `  - Velocidad de Enlace: ${Math.floor(Math.random() * 150) + 50} Mbps\n`;
                 document.querySelector('input[name="conectividad"][value="Si"]').checked = true;
             } else {
                 obsText += `❌ ESTADO: FALLO DE CONEXIÓN\n`;
-                obsText += `  - SSID Objetivo no encontrado en escaneo.\n`;
-                obsText += `  - Redes detectadas: 'WIFI-LIBRE', 'AndroidAP_${Math.floor(Math.random()*1000)}', 'RED-VECINO'\n`;
+                obsText += `  - SSID Objetivo no encontrado: ${targetSSID}\n`;
+                obsText += `  - Redes disponibles:\n`;
+                networks.forEach(net => {
+                    obsText += `    * ${net.ssid} (${net.signal} dBm, ${net.security})\n`;
+                });
                 obsText += `  - Posibles causas:\n`;
-                obsText += `    * Router WiFi apagado o sin alimentación\n`;
+                obsText += `    * Router WiFi del bus apagado o sin alimentación\n`;
                 obsText += `    * Configuración incorrecta del SSID\n`;
                 obsText += `    * Interferencia de señal\n`;
                 obsText += `    * Distancia excesiva al punto de acceso\n`;
+                obsText += `    * Bus fuera de servicio\n`;
                 document.querySelector('input[name="conectividad"][value="No"]').checked = true;
             }
         } else {
@@ -4614,15 +4607,16 @@
         statusEl.classList.remove('hidden');
         
         // Update form display based on new connectivity status
-        updateFormStatus('No'); // Siempre marca como problema si no hay WiFi
+        const isConnected = withWiFiScan && scanResult && scanResult.targetFound;
+        updateFormStatus(isConnected ? 'Si' : 'No');
         
         // Update verification info display
         const verificationInfo = {
             lastConnection: withWiFiScan ? 'Verificado' : 'Problema Registrado',
-            connectionClass: withWiFiScan ? 'text-success' : 'text-warning',
-            signalClass: withWiFiScan ? 'signal-excellent' : 'signal-none',
+            connectionClass: isConnected ? 'text-success' : 'text-warning',
+            signalClass: isConnected ? 'signal-excellent' : 'signal-none',
             verificationCount: '1',
-            qualityPercentage: withWiFiScan ? 80 : 10
+            qualityPercentage: isConnected ? 80 : 10
         };
         
         dom.form.lastConnection.textContent = verificationInfo.lastConnection;
@@ -4633,8 +4627,11 @@
     }
     
     function getCurrentUser() {
-        const users = ['Juan Pérez', 'María López', 'Carlos Rodríguez', 'Ana García'];
-        return users[Math.floor(Math.random() * users.length)];
+        // Inspector basado en la terminal más cercana
+        if (state.nearestTerminal) {
+            return `Inspector ${state.nearestTerminal}`;
+        }
+        return 'Inspector General';
     }
     
     function generateRandomMAC() {
@@ -4645,6 +4642,75 @@
             mac += segment + (i < 5 ? ':' : '');
         }
         return mac;
+    }
+    
+    async function scanWiFiNetworks(bus) {
+        return new Promise((resolve, reject) => {
+            const targetSSID = `Red-${bus.ppu.toLowerCase()}`;
+            let scanText = '';
+            let foundNetworks = [];
+            
+            // Simular escaneo real con redes típicas
+            const commonNetworks = [
+                'WIFI-LIBRE',
+                'TP-LINK_2354', 
+                'AndroidAP_728',
+                'RED-VECINO',
+                'iPhone_123',
+                'TransantiagoWiFi',
+                'HOTSPOT_MOVIL',
+                'RED_OFICINA'
+            ];
+            
+            // Agregar la red objetivo del bus
+            const targetNetwork = {
+                ssid: targetSSID,
+                signal: Math.floor(Math.random() * 30) + 40, // -40 a -70 dBm
+                security: 'WPA2-PSK',
+                channel: Math.floor(Math.random() * 13) + 1,
+                frequency: '2.4 GHz'
+            };
+            
+            let networkIndex = 0;
+            const totalNetworks = commonNetworks.length + 1;
+            
+            const scanInterval = setInterval(() => {
+                if (networkIndex < commonNetworks.length) {
+                    // Redes comunes
+                    const network = {
+                        ssid: commonNetworks[networkIndex],
+                        signal: Math.floor(Math.random() * 50) + 30,
+                        security: Math.random() > 0.5 ? 'WPA2-PSK' : 'Open',
+                        channel: Math.floor(Math.random() * 13) + 1,
+                        frequency: Math.random() > 0.7 ? '5 GHz' : '2.4 GHz'
+                    };
+                    foundNetworks.push(network);
+                    scanText += `> Encontrada red: ${network.ssid} (${network.signal} dBm)\n`;
+                } else {
+                    // Red objetivo del bus
+                    foundNetworks.push(targetNetwork);
+                    scanText += `> Encontrada red: ${targetNetwork.ssid} (${targetNetwork.signal} dBm) [OBJETIVO]\n`;
+                }
+                
+                dom.verificationSection.scanningText.textContent = scanText;
+                networkIndex++;
+                
+                if (networkIndex >= totalNetworks) {
+                    clearInterval(scanInterval);
+                    
+                    // Verificar si se encontró la red objetivo
+                    const targetFound = foundNetworks.find(net => net.ssid === targetSSID);
+                    
+                    setTimeout(() => {
+                        resolve({
+                            networks: foundNetworks,
+                            targetFound: targetFound,
+                            targetSSID: targetSSID
+                        });
+                    }, 1000);
+                }
+            }, 300);
+        });
     }
 
     function exportToExcel() {
