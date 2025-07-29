@@ -2636,14 +2636,14 @@
                                 <div id="verification-section" class="verification-section p-4 mb-5">
                                     <h3 class="font-semibold mb-3 text-gray-700 flex items-center">
                                         <i class="fas fa-wifi text-primary mr-2"></i>
-                                        Verificación de Conexión WiFi
+                                        Registro de Estado de Conectividad
                                     </h3>
                                     <div id="verification-status">
                                         <div class="flex items-center gap-2 mb-3">
                                             <div class="flex-shrink-0 bg-white p-2 rounded-lg">
                                                 <i class="fas fa-map-marker-alt text-primary"></i>
                                             </div>
-                                            <p class="text-sm text-gray-600" id="verification-distance-text">La verificación está disponible cuando se encuentre a menos de 10m de una terminal.</p>
+                                            <p class="text-sm text-gray-600" id="verification-distance-text">Verificación WiFi disponible a menos de 300m de una terminal. Registro de problemas siempre disponible.</p>
                                         </div>
                                         
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -2661,9 +2661,9 @@
                                             </div>
                                         </div>
                                         
-                                        <button id="verify-connection-btn" class="btn btn-primary w-100 flex items-center justify-center gap-2 disabled" disabled>
+                                        <button id="verify-connection-btn" class="btn btn-primary w-100 flex items-center justify-center gap-2">
                                             <i class="fas fa-sync-alt"></i>
-                                            <span>Verificar Conexión WiFi</span>
+                                            <span>Registrar Estado de Conectividad</span>
                                         </button>
                                     </div>
                                     <div id="verification-loading" class="hidden verification-loading">
@@ -2963,7 +2963,7 @@
             active: false
         }
     };
-    const VERIFICATION_RADIUS_METERS = 10;
+    const VERIFICATION_RADIUS_METERS = 300;
 
     // --- STATE MANAGEMENT ---
     let state = {
@@ -3174,7 +3174,7 @@
         } else if (accuracy <= 20) {
             dom.geoStatusText.textContent = `GPS Buena (±${accuracy.toFixed(0)}m)`;
         } else if (accuracy <= 50) {
-            dom.geoStatusText.textContent = `GPS Regular (±${accuracy.toFixed(0)}m)`;
+            dom.geoStatusText.textContent = `GPS Suficiente (±${accuracy.toFixed(0)}m)`;
         } else {
             dom.geoStatusText.textContent = `GPS Baja (±${accuracy.toFixed(0)}m)`;
         }
@@ -3209,33 +3209,22 @@
 
         dom.geoStatusText.textContent = `${nearestTerm} (${nearestDist.toFixed(0)}m)`;
         
-        // Check if GPS accuracy is good enough for verification
-        const gpsAccuracy = state.userLocation.accuracy || 100;
-        const canVerify = nearestDist <= VERIFICATION_RADIUS_METERS && gpsAccuracy <= 10;
-        
-        // Update verification section
+        // Update verification section (siempre habilitado para registro)
         dom.verificationSection.terminal.textContent = nearestTerm || '--';
         dom.verificationSection.distance.textContent = `${nearestDist.toFixed(0)}m`;
         
-        if (canVerify) {
-            dom.verifyConnectionBtn.disabled = false;
-            dom.verifyConnectionBtn.classList.remove('disabled');
-            dom.verificationSection.statusText.textContent = 'Disponible';
+        // Siempre habilitar el botón para registro de problemas
+        dom.verifyConnectionBtn.disabled = false;
+        dom.verifyConnectionBtn.classList.remove('disabled');
+        
+        if (nearestDist <= VERIFICATION_RADIUS_METERS && (state.userLocation.accuracy || 100) <= 50) {
+            dom.verificationSection.statusText.textContent = 'Verificación WiFi Disponible';
             dom.verificationSection.statusText.className = 'font-semibold text-success';
-            dom.verificationSection.distanceText.textContent = `Verificación habilitada en terminal "${nearestTerm}".`;
+            dom.verificationSection.distanceText.textContent = `Puede verificar conexión WiFi en terminal "${nearestTerm}" (${nearestDist.toFixed(0)}m).`;
         } else {
-            dom.verifyConnectionBtn.disabled = true;
-            dom.verifyConnectionBtn.classList.add('disabled');
-            
-            if (gpsAccuracy > 10) {
-                dom.verificationSection.statusText.textContent = 'GPS Insuficiente';
-                dom.verificationSection.statusText.className = 'font-semibold text-warning';
-                dom.verificationSection.distanceText.textContent = `Mejore la precisión GPS (actual: ±${gpsAccuracy.toFixed(0)}m). Debe ser ≤10m.`;
-            } else {
-                dom.verificationSection.statusText.textContent = 'No Disponible';
-                dom.verificationSection.statusText.className = 'font-semibold text-danger';
-                dom.verificationSection.distanceText.textContent = `Acérquese a una terminal para habilitar la verificación (distancia actual: ${nearestDist.toFixed(0)}m).`;
-            }
+            dom.verificationSection.statusText.textContent = 'Registro de Problemas Disponible';
+            dom.verificationSection.statusText.className = 'font-semibold text-info';
+            dom.verificationSection.distanceText.textContent = `Puede registrar problemas de conectividad sin verificación WiFi.`;
         }
     }
 
@@ -4517,81 +4506,106 @@
             return;
         }
 
-        // Check if user is near a terminal
-        if (!state.nearestTerminal || state.distanceToTerminal > VERIFICATION_RADIUS_METERS) {
-            return;
-        }
+        // Siempre permitir registro, con o sin verificación WiFi
+        const canVerifyWiFi = state.nearestTerminal && state.distanceToTerminal <= VERIFICATION_RADIUS_METERS && (state.userLocation.accuracy || 100) <= 50;
 
         const loadingEl = dom.verificationSection.loading;
         const statusEl = dom.verificationSection.status;
         
         loadingEl.classList.remove('hidden');
         statusEl.classList.add('hidden');
-        dom.form.observacion.value = "Iniciando escaneo de redes WiFi...\n";
-
-        // Start the scanning animation with real network simulation
-        let scanningText = '';
-        const networks = ['WIFI-LIBRE', 'TP-LINK_2354', 'AndroidAP_728', 'RED-VECINO', 'iPhone de Juan', 'TransantiagoWiFi'];
-        let networkIndex = 0;
-        
-        const scanInterval = setInterval(() => {
-            scanningText += `> Encontrada red: ${networks[networkIndex]} (${Math.floor(Math.random() * 50) + 30} dBm)\n`;
-            dom.verificationSection.scanningText.textContent = scanningText;
+        if (canVerifyWiFi) {
+            dom.form.observacion.value = "Iniciando escaneo de redes WiFi...\n";
             
-            networkIndex++;
-            if (networkIndex >= networks.length) {
-                clearInterval(scanInterval);
+            // Start the scanning animation with real network simulation
+            let scanningText = '';
+            const networks = ['WIFI-LIBRE', 'TP-LINK_2354', 'AndroidAP_728', 'RED-VECINO', 'iPhone de Juan', 'TransantiagoWiFi'];
+            let networkIndex = 0;
+            
+            const scanInterval = setInterval(() => {
+                scanningText += `> Encontrada red: ${networks[networkIndex]} (${Math.floor(Math.random() * 50) + 30} dBm)\n`;
+                dom.verificationSection.scanningText.textContent = scanningText;
                 
-                setTimeout(() => {
-                    completeVerification(bus);
-                }, 1000);
-            }
-        }, 500);
+                networkIndex++;
+                if (networkIndex >= networks.length) {
+                    clearInterval(scanInterval);
+                    
+                    setTimeout(() => {
+                        completeVerification(bus, true);
+                    }, 1000);
+                }
+            }, 500);
+        } else {
+            // Registro sin verificación WiFi
+            dom.form.observacion.value = "Registrando problema de conectividad sin verificación WiFi...\n";
+            
+            setTimeout(() => {
+                completeVerification(bus, false);
+            }, 2000);
+        }
     }
     
-    function completeVerification(bus) {
+    function completeVerification(bus, withWiFiScan = true) {
         const loadingEl = dom.verificationSection.loading;
         const statusEl = dom.verificationSection.status;
         
-        const isSuccess = Math.random() > 0.3; // 70% chance of success
-        const signalStrength = -Math.floor(Math.random() * (90 - 40 + 1)) + 40; // dBm
-        const latency = Math.floor(Math.random() * (150 - 30 + 1)) + 30;
-        const targetSSID = `WIFI-BUS-${bus.ppu}`;
-        
         let obsText = `--- INICIO REPORTE TÉCNICO DE CONECTIVIDAD ---\n`;
         obsText += `Fecha: ${new Date().toLocaleString('es-CL')}\n`;
-        obsText += `Terminal: ${state.nearestTerminal} (Dist: ${state.distanceToTerminal.toFixed(1)}m)\n`;
         obsText += `PPU Objetivo: ${bus.ppu}\n`;
-        obsText += `SSID Objetivo: ${targetSSID}\n\n`;
-        obsText += `RESULTADO DEL ESCANEO:\n`;
+        obsText += `Terminal: ${bus.terminal}\n`;
+        
+        if (withWiFiScan) {
+            const isSuccess = Math.random() > 0.3; // 70% chance of success
+            const signalStrength = -Math.floor(Math.random() * (90 - 40 + 1)) + 40; // dBm
+            const latency = Math.floor(Math.random() * (150 - 30 + 1)) + 30;
+            const targetSSID = `WIFI-BUS-${bus.ppu}`;
+            
+            obsText += `Distancia a Terminal: ${state.distanceToTerminal.toFixed(1)}m\n`;
+            obsText += `SSID Objetivo: ${targetSSID}\n\n`;
+            obsText += `RESULTADO DEL ESCANEO WiFi:\n`;
 
-        if (isSuccess) {
-            obsText += `✅ ESTADO: CONEXIÓN EXITOSA\n`;
-            obsText += `  - SSID Encontrado: ${targetSSID}\n`;
-            obsText += `  - Señal (RSSI): ${signalStrength} dBm (${signalStrength > -60 ? 'Excelente' : signalStrength > -70 ? 'Buena' : 'Regular'})\n`;
-            obsText += `  - Autenticación: WPA2-PSK (AES)\n`;
-            obsText += `  - Canal: ${Math.floor(Math.random() * 13) + 1}\n`;
-            obsText += `  - Frecuencia: 2.4 GHz\n`;
-            obsText += `  - Dirección MAC: ${generateRandomMAC()}\n`;
-            obsText += `  - Latencia: ${latency} ms\n`;
-            obsText += `  - Velocidad de Enlace: ${Math.floor(Math.random() * 150) + 50} Mbps\n`;
-            document.querySelector('input[name="conectividad"][value="Si"]').checked = true;
+            if (isSuccess) {
+                obsText += `✅ ESTADO: CONEXIÓN EXITOSA\n`;
+                obsText += `  - SSID Encontrado: ${targetSSID}\n`;
+                obsText += `  - Señal (RSSI): ${signalStrength} dBm (${signalStrength > -60 ? 'Excelente' : signalStrength > -70 ? 'Buena' : 'Regular'})\n`;
+                obsText += `  - Autenticación: WPA2-PSK (AES)\n`;
+                obsText += `  - Canal: ${Math.floor(Math.random() * 13) + 1}\n`;
+                obsText += `  - Frecuencia: 2.4 GHz\n`;
+                obsText += `  - Dirección MAC: ${generateRandomMAC()}\n`;
+                obsText += `  - Latencia: ${latency} ms\n`;
+                obsText += `  - Velocidad de Enlace: ${Math.floor(Math.random() * 150) + 50} Mbps\n`;
+                document.querySelector('input[name="conectividad"][value="Si"]').checked = true;
+            } else {
+                obsText += `❌ ESTADO: FALLO DE CONEXIÓN\n`;
+                obsText += `  - SSID Objetivo no encontrado en escaneo.\n`;
+                obsText += `  - Redes detectadas: 'WIFI-LIBRE', 'AndroidAP_${Math.floor(Math.random()*1000)}', 'RED-VECINO'\n`;
+                obsText += `  - Posibles causas:\n`;
+                obsText += `    * Router WiFi apagado o sin alimentación\n`;
+                obsText += `    * Configuración incorrecta del SSID\n`;
+                obsText += `    * Interferencia de señal\n`;
+                obsText += `    * Distancia excesiva al punto de acceso\n`;
+                document.querySelector('input[name="conectividad"][value="No"]').checked = true;
+            }
         } else {
-            obsText += `❌ ESTADO: FALLO DE CONEXIÓN\n`;
-            obsText += `  - SSID Objetivo no encontrado en escaneo.\n`;
-            obsText += `  - Redes detectadas: 'WIFI-LIBRE', 'AndroidAP_${Math.floor(Math.random()*1000)}', 'RED-VECINO'\n`;
+            // Registro sin verificación WiFi
+            obsText += `Distancia a Terminal: ${state.distanceToTerminal.toFixed(1)}m\n`;
+            obsText += `Tipo de Registro: PROBLEMA DE CONECTIVIDAD\n\n`;
+            obsText += `❌ ESTADO: PROBLEMA REGISTRADO SIN VERIFICACIÓN WiFi\n`;
+            obsText += `  - Motivo: No se pudo realizar verificación WiFi\n`;
             obsText += `  - Posibles causas:\n`;
-            obsText += `    * Router WiFi apagado o sin alimentación\n`;
-            obsText += `    * Configuración incorrecta del SSID\n`;
-            obsText += `    * Interferencia de señal\n`;
-            obsText += `    * Distancia excesiva al punto de acceso\n`;
+            obsText += `    * Sin señal WiFi disponible\n`;
+            obsText += `    * Sin conexión a internet\n`;
+            obsText += `    * Dispositivo sin capacidad WiFi\n`;
+            obsText += `    * Distancia excesiva a terminal\n`;
+            obsText += `    * GPS insuficiente para verificación\n`;
             document.querySelector('input[name="conectividad"][value="No"]').checked = true;
         }
         
         obsText += `\nINFORMACIÓN ADICIONAL:\n`;
-        obsText += `  - Dispositivo: ESP32 WiFi Scanner\n`;
+        obsText += `  - Dispositivo: ${withWiFiScan ? 'ESP32 WiFi Scanner' : 'Registro Manual'}\n`;
         obsText += `  - Firmware: v2.3.4\n`;
         obsText += `  - Operador: ${getCurrentUser()}\n`;
+        obsText += `  - Tipo de Registro: ${withWiFiScan ? 'Verificación WiFi' : 'Registro de Problema'}\n`;
         obsText += `--- FIN REPORTE TÉCNICO ---`;
         
         dom.form.observacion.value = obsText;
@@ -4600,15 +4614,15 @@
         statusEl.classList.remove('hidden');
         
         // Update form display based on new connectivity status
-        updateFormStatus(isSuccess ? 'Si' : 'No');
+        updateFormStatus('No'); // Siempre marca como problema si no hay WiFi
         
         // Update verification info display
         const verificationInfo = {
-            lastConnection: 'Verificado',
-            connectionClass: 'text-success',
-            signalClass: isSuccess ? 'signal-excellent' : 'signal-none',
+            lastConnection: withWiFiScan ? 'Verificado' : 'Problema Registrado',
+            connectionClass: withWiFiScan ? 'text-success' : 'text-warning',
+            signalClass: withWiFiScan ? 'signal-excellent' : 'signal-none',
             verificationCount: '1',
-            qualityPercentage: isSuccess ? 80 : 10
+            qualityPercentage: withWiFiScan ? 80 : 10
         };
         
         dom.form.lastConnection.textContent = verificationInfo.lastConnection;
