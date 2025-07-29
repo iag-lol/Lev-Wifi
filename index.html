@@ -3722,8 +3722,8 @@
     }
     
     function updateUserLocationOnMaps() {
-        // Check if user location is available
-        if (!state.userLocation) return;
+        // Check if user location is available and maps are initialized
+        if (!state.userLocation || !state.maps.dashboard || !state.maps.full) return;
         
         // Create user location marker icon
         const userIcon = L.divIcon({
@@ -3756,12 +3756,18 @@
     }
     
     function clearAllMapMarkers() {
+        // Verificar que los mapas estén inicializados
+        if (!state.maps.dashboard || !state.maps.full) {
+            console.warn('Mapas no inicializados, no se pueden limpiar marcadores');
+            return;
+        }
+        
         // Clear all bus markers
         state.maps.markers.buses.forEach(marker => {
-            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+            if (marker && marker.dashboardMarker && state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
                 state.maps.dashboard.removeLayer(marker.dashboardMarker);
             }
-            if (state.maps.full.hasLayer(marker.fullMarker)) {
+            if (marker && marker.fullMarker && state.maps.full.hasLayer(marker.fullMarker)) {
                 state.maps.full.removeLayer(marker.fullMarker);
             }
         });
@@ -3769,10 +3775,10 @@
         
         // Clear all terminal markers
         state.maps.markers.terminals.forEach(marker => {
-            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+            if (marker && marker.dashboardMarker && state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
                 state.maps.dashboard.removeLayer(marker.dashboardMarker);
             }
-            if (state.maps.full.hasLayer(marker.fullMarker)) {
+            if (marker && marker.fullMarker && state.maps.full.hasLayer(marker.fullMarker)) {
                 state.maps.full.removeLayer(marker.fullMarker);
             }
         });
@@ -3780,10 +3786,10 @@
         
         // Clear user marker
         if (state.maps.markers.user) {
-            if (state.maps.dashboard.hasLayer(state.maps.markers.user.dashboardMarker)) {
+            if (state.maps.markers.user.dashboardMarker && state.maps.dashboard.hasLayer(state.maps.markers.user.dashboardMarker)) {
                 state.maps.dashboard.removeLayer(state.maps.markers.user.dashboardMarker);
             }
-            if (state.maps.full.hasLayer(state.maps.markers.user.fullMarker)) {
+            if (state.maps.markers.user.fullMarker && state.maps.full.hasLayer(state.maps.markers.user.fullMarker)) {
                 state.maps.full.removeLayer(state.maps.markers.user.fullMarker);
             }
             state.maps.markers.user = null;
@@ -4499,6 +4505,12 @@
     }
 
     function updateBusMarker(bus) {
+        // Verificar que los mapas estén inicializados
+        if (!state.maps.dashboard || !state.maps.full) {
+            console.warn('Mapas no inicializados, no se puede actualizar marcador');
+            return;
+        }
+        
         // Find existing marker
         const markerIndex = state.maps.markers.buses.findIndex(marker => marker.id === bus.id);
         if (markerIndex !== -1 && bus.terminal && TERMINALS[bus.terminal]) {
@@ -4508,10 +4520,10 @@
             // Update marker status
             if (marker.status !== bus.conectividad) {
                 // Remove old markers
-                if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                if (marker.dashboardMarker && state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
                     state.maps.dashboard.removeLayer(marker.dashboardMarker);
                 }
-                if (state.maps.full.hasLayer(marker.fullMarker)) {
+                if (marker.fullMarker && state.maps.full.hasLayer(marker.fullMarker)) {
                     state.maps.full.removeLayer(marker.fullMarker);
                 }
                 
@@ -4919,7 +4931,7 @@
         dom.syncBtn.addEventListener('click', syncLocalData);
         dom.verifyConnectionBtn.addEventListener('click', handleVerifyConnection);
         dom.centerMapBtn.addEventListener('click', () => {
-            if (state.userLocation) {
+            if (state.userLocation && state.maps.full) {
                 state.maps.full.setView([state.userLocation.lat, state.userLocation.lon], 12);
             }
         });
@@ -4928,8 +4940,16 @@
         dom.mapFilter.addEventListener('change', () => {
             const filter = dom.mapFilter.value;
             
+            // Verificar que los mapas estén inicializados
+            if (!state.maps.full || !state.maps.dashboard) {
+                console.warn('Mapas no inicializados aún');
+                return;
+            }
+            
             // Apply filter to bus markers
             state.maps.markers.buses.forEach(marker => {
+                if (!marker || !marker.fullMarker) return;
+                
                 if (filter === 'all') {
                     if (!state.maps.full.hasLayer(marker.fullMarker)) {
                         state.maps.full.addLayer(marker.fullMarker);
