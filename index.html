@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Conectividad de Flota v3</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -59,7 +60,7 @@
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --shadow-2xl: 0 25px 50px -12px rgba(5, 3, 3, 0.25);
             --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
             --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             --transition-normal: all 0.3s ease;
@@ -1095,6 +1096,10 @@
             border-left: 4px solid var(--info);
         }
         
+        .toast-warning {
+            border-left: 4px solid var(--warning);
+        }
+        
         /* Dropdown */
         .dropdown {
             position: relative;
@@ -2122,6 +2127,31 @@
             }
         }
         
+        /* Mobile Device Optimizations */
+        .mobile-device .management-view {
+            scroll-margin-top: 120px;
+        }
+        
+        .mobile-device .verification-section {
+            background: linear-gradient(135deg, #EBF4FF 0%, #E6FFFA 100%);
+            border: 2px solid var(--primary-light);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .mobile-device .form-control {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        
+        .mobile-device .btn {
+            min-height: 44px; /* Better touch targets */
+        }
+        
+        .mobile-device .nav-link {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+        
         /* Hover Effects */
         .hover-lift {
             transition: var(--transition-normal);
@@ -3077,13 +3107,10 @@
         if (!terminalName || !TERMINALS[terminalName]) return null;
         
         const terminal = TERMINALS[terminalName];
-        // Add a small random offset to the terminal location (within ~200m)
-        const latOffset = (Math.random() - 0.5) * 0.004;
-        const lonOffset = (Math.random() - 0.5) * 0.004;
-        
+        // Use exact terminal location for buses
         return {
-            lat: terminal.lat + latOffset,
-            lon: terminal.lon + lonOffset
+            lat: terminal.lat,
+            lon: terminal.lon
         };
     }
 
@@ -3106,20 +3133,32 @@
         }
         
         // Initial status update
-        dom.geoStatusText.textContent = 'Obteniendo ubicación...';
+        dom.geoStatusText.textContent = 'Obteniendo ubicación de alta precisión...';
         
         navigator.geolocation.watchPosition(handleLocationSuccess, handleLocationError, {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
+            timeout: 15000,
+            maximumAge: 30000
         });
     }
 
     function handleLocationSuccess(position) {
+        const accuracy = position.coords.accuracy;
         state.userLocation = {
             lat: position.coords.latitude,
-            lon: position.coords.longitude
+            lon: position.coords.longitude,
+            accuracy: accuracy
         };
+        
+        // Update status with accuracy info
+        if (accuracy <= 10) {
+            dom.geoStatusText.textContent = `GPS Alta Precisión (±${accuracy.toFixed(0)}m)`;
+        } else if (accuracy <= 50) {
+            dom.geoStatusText.textContent = `GPS Buena (±${accuracy.toFixed(0)}m)`;
+        } else {
+            dom.geoStatusText.textContent = `GPS Baja (±${accuracy.toFixed(0)}m)`;
+        }
+        
         updateGeoStatus();
         
         // Update maps with user location
@@ -3151,18 +3190,19 @@
         dom.geoStatusText.textContent = `${nearestTerm} (${nearestDist.toFixed(0)}m)`;
         
         const canVerify = nearestDist <= VERIFICATION_RADIUS_METERS;
-        dom.verifyConnectionBtn.disabled = !canVerify;
         
         // Update verification section
         dom.verificationSection.terminal.textContent = nearestTerm || '--';
         dom.verificationSection.distance.textContent = `${nearestDist.toFixed(0)}m`;
         
         if (canVerify) {
+            dom.verifyConnectionBtn.disabled = false;
             dom.verifyConnectionBtn.classList.remove('disabled');
             dom.verificationSection.statusText.textContent = 'Disponible';
             dom.verificationSection.statusText.className = 'font-semibold text-success';
             dom.verificationSection.distanceText.textContent = `Verificación habilitada en terminal "${nearestTerm}".`;
         } else {
+            dom.verifyConnectionBtn.disabled = true;
             dom.verifyConnectionBtn.classList.add('disabled');
             dom.verificationSection.statusText.textContent = 'No Disponible';
             dom.verificationSection.statusText.className = 'font-semibold text-danger';
@@ -3494,9 +3534,11 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(state.maps.full);
         
-        // Add markers to maps
+        // Clear any existing markers first
+        clearAllMapMarkers();
+        
+        // Add only terminal markers (no fake bus markers)
         addTerminalMarkers();
-        addBusMarkers();
         
         // Add user location if available
         if (state.userLocation) {
@@ -3566,9 +3608,9 @@
         });
         state.maps.markers.buses = [];
         
-        // Add markers for each bus with location
+        // Only add markers for buses that are actually at terminals (not random locations)
         state.fleetData.forEach(bus => {
-            if (bus.location) {
+            if (bus.location && bus.terminal) {
                 const statusColor = bus.conectividad === 'Si' ? 'primary' : 'gray-500';
                 
                 const dashboardIcon = L.divIcon({
@@ -3633,13 +3675,48 @@
         // Add new user markers
         const dashboardMarker = L.marker([state.userLocation.lat, state.userLocation.lon], { icon: userIcon }).addTo(state.maps.dashboard);
         const fullMarker = L.marker([state.userLocation.lat, state.userLocation.lon], { icon: userIcon }).addTo(state.maps.full);
-        fullMarker.bindTooltip('Su ubicación');
+        fullMarker.bindTooltip(`Su ubicación (Precisión: ±${state.userLocation.accuracy ? state.userLocation.accuracy.toFixed(0) : 'N/A'}m)`);
         
         // Store markers
         state.maps.markers.user = {
             dashboardMarker,
             fullMarker
         };
+    }
+    
+    function clearAllMapMarkers() {
+        // Clear all bus markers
+        state.maps.markers.buses.forEach(marker => {
+            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(marker.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(marker.fullMarker)) {
+                state.maps.full.removeLayer(marker.fullMarker);
+            }
+        });
+        state.maps.markers.buses = [];
+        
+        // Clear all terminal markers
+        state.maps.markers.terminals.forEach(marker => {
+            if (state.maps.dashboard.hasLayer(marker.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(marker.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(marker.fullMarker)) {
+                state.maps.full.removeLayer(marker.fullMarker);
+            }
+        });
+        state.maps.markers.terminals = [];
+        
+        // Clear user marker
+        if (state.maps.markers.user) {
+            if (state.maps.dashboard.hasLayer(state.maps.markers.user.dashboardMarker)) {
+                state.maps.dashboard.removeLayer(state.maps.markers.user.dashboardMarker);
+            }
+            if (state.maps.full.hasLayer(state.maps.markers.user.fullMarker)) {
+                state.maps.full.removeLayer(state.maps.markers.user.fullMarker);
+            }
+            state.maps.markers.user = null;
+        }
     }
     
     function selectTerminal(terminalName) {
@@ -3717,6 +3794,16 @@
                     state.maps.full.invalidateSize();
                 }
             }, 100);
+        } else if (viewName === 'management') {
+            // Focus on management section for mobile devices
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    const managementView = document.getElementById('management-view');
+                    if (managementView) {
+                        managementView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+            }
         }
     }
 
@@ -3958,6 +4045,43 @@
         // Update connectivity rate
         dom.dashboard.connectivityRate.textContent = `${onlinePercentage}%`;
         dom.dashboard.connectivityRateBar.style.width = `${onlinePercentage}%`;
+
+        // Handle empty data state
+        if (total === 0) {
+            // Clear charts
+            if (state.charts.status) {
+                state.charts.status.data.datasets[0].data = [0, 0, 0];
+                state.charts.status.update();
+            }
+            
+            // Show empty state messages
+            dom.dashboard.pendingList.innerHTML = `
+                <div class="text-center p-4 text-gray-500">
+                    <i class="fas fa-info-circle text-2xl mb-2"></i>
+                    <p class="font-semibold">No hay revisiones pendientes</p>
+                    <p class="text-sm">Los datos aparecerán aquí cuando se registren revisiones en Supabase</p>
+                </div>
+            `;
+            
+            dom.dashboard.problemsTable.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center p-4 text-gray-500">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        No hay buses con problemas registrados
+                    </td>
+                </tr>
+            `;
+            
+            // Clear problem categories
+            dom.dashboard.sinConexionCount.textContent = '0';
+            dom.dashboard.faltaInstalacionCount.textContent = '0';
+            dom.dashboard.sinCardCount.textContent = '0';
+            dom.dashboard.sinConexionBar.style.width = '0%';
+            dom.dashboard.faltaInstalacionBar.style.width = '0%';
+            dom.dashboard.sinCardBar.style.width = '0%';
+            
+            return;
+        }
 
         // Update Chart
         if (state.charts.status) {
@@ -4211,6 +4335,26 @@
                     </div>
                 </div>
             `;
+        } else if (type === 'warning') {
+            toast.classList.add('toast-warning');
+            toast.innerHTML = `
+                <div class="p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-warning mr-2"></i>
+                        <p class="font-medium">${message}</p>
+                    </div>
+                </div>
+            `;
+        } else if (type === 'info') {
+            toast.classList.add('toast-info');
+            toast.innerHTML = `
+                <div class="p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-info mr-2"></i>
+                        <p class="font-medium">${message}</p>
+                    </div>
+                </div>
+            `;
         } else {
             toast.classList.add('toast-danger');
             toast.innerHTML = `
@@ -4223,6 +4367,13 @@
             `;
         }
         
+        // Add mobile-specific styling
+        if (window.innerWidth <= 768) {
+            toast.style.maxWidth = '90vw';
+            toast.style.right = '5vw';
+            toast.style.left = '5vw';
+        }
+        
         // Show toast
         toast.classList.remove('hidden');
         
@@ -4232,7 +4383,7 @@
             setTimeout(() => {
                 toast.classList.add('hidden');
             }, 500);
-        }, 3000);
+        }, 4000);
     }
 
     // --- EVENT HANDLERS & LOGIC ---
@@ -4332,7 +4483,16 @@
 
     function handleVerifyConnection() {
         const bus = state.fleetData.find(b => b.id === state.currentBusId);
-        if (!bus) return;
+        if (!bus) {
+            showToast('Seleccione un bus para verificar la conexión WiFi.', 'warning');
+            return;
+        }
+
+        // Check if user is near a terminal
+        if (!state.nearestTerminal || state.distanceToTerminal > VERIFICATION_RADIUS_METERS) {
+            showToast('Debe estar a menos de 10 metros de una terminal para verificar la conexión WiFi.', 'warning');
+            return;
+        }
 
         const loadingEl = dom.verificationSection.loading;
         const statusEl = dom.verificationSection.status;
@@ -4341,13 +4501,13 @@
         statusEl.classList.add('hidden');
         dom.form.observacion.value = "Iniciando escaneo de redes WiFi...\n";
 
-        // Start the scanning animation
+        // Start the scanning animation with real network simulation
         let scanningText = '';
         const networks = ['WIFI-LIBRE', 'TP-LINK_2354', 'AndroidAP_728', 'RED-VECINO', 'iPhone de Juan', 'TransantiagoWiFi'];
         let networkIndex = 0;
         
         const scanInterval = setInterval(() => {
-            scanningText += `> Encontrada red: ${networks[networkIndex]}\n`;
+            scanningText += `> Encontrada red: ${networks[networkIndex]} (${Math.floor(Math.random() * 50) + 30} dBm)\n`;
             dom.verificationSection.scanningText.textContent = scanningText;
             
             networkIndex++;
@@ -4527,6 +4687,14 @@
         // Update date/time
         updateDateTime();
         setInterval(updateDateTime, 60000); // Update every minute
+        
+        // Detect mobile device and optimize experience
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            document.body.classList.add('mobile-device');
+            // Show mobile-specific instructions
+            showToast('Modo móvil activado. Use la sección de Gestión para registrar información.', 'info');
+        }
         
         // Setup event listeners
         dom.navLinks.forEach(link => link.addEventListener('click', () => switchView(link.dataset.view)));
