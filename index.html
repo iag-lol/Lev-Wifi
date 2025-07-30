@@ -2671,10 +2671,16 @@
                                             </div>
                                         </div>
                                         
-                                        <button id="verify-connection-btn" class="btn btn-primary w-100 flex items-center justify-center gap-2">
-                                            <i class="fas fa-sync-alt"></i>
-                                            <span>Registrar Estado de Conectividad</span>
-                                        </button>
+                                        <div class="grid grid-cols-1 gap-2">
+                                            <button id="verify-connection-btn" class="btn btn-primary w-100 flex items-center justify-center gap-2">
+                                                <i class="fas fa-sync-alt"></i>
+                                                <span>Registrar Estado de Conectividad</span>
+                                            </button>
+                                            <button id="no-wifi-signal-btn" class="btn btn-danger w-100 flex items-center justify-center gap-2">
+                                                <i class="fas fa-wifi-slash"></i>
+                                                <span>Bus Sin Señal WiFi</span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div id="verification-loading" class="hidden verification-loading">
                                         <div class="flex items-center justify-center space-x-3 text-gray-600 p-4">
@@ -3035,6 +3041,7 @@ const dom = {
     syncBtn: document.getElementById('sync-btn'),
     geoStatusText: document.getElementById('geo-status-text'),
     verifyConnectionBtn: document.getElementById('verify-connection-btn'),
+    noWifiSignalBtn: document.getElementById('no-wifi-signal-btn'),
     currentDatetime: document.getElementById('current-datetime'),
     filterButtons: document.querySelectorAll('.filter-btn'),
     centerMapBtn: document.getElementById('center-map-btn'),
@@ -5338,6 +5345,113 @@ async function scanWiFiNetworks(bus) {
     }
 }
 
+async function handleNoWifiSignal() {
+    const bus = state.fleetData.find(b => b.id === state.currentBusId);
+    if (!bus) {
+        showToast("No se ha seleccionado ningún bus", "error");
+        return;
+    }
+
+    const loadingEl = dom.verificationSection.loading;
+    const statusEl = dom.verificationSection.status;
+    
+    loadingEl.classList.remove('hidden');
+    statusEl.classList.add('hidden');
+    
+    // Iniciar proceso de registro sin señal WiFi
+    dom.form.observacion.value = "Iniciando registro de bus sin señal WiFi...\n";
+    dom.verificationSection.scanningText.textContent = "Registrando bus sin señal WiFi...";
+    
+    try {
+        console.log('📵 Registrando bus sin señal WiFi:', bus.ppu);
+        
+        // Simular un breve delay para mostrar el proceso
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Completar verificación como sin conectividad
+        completeNoWifiVerification(bus);
+        
+        showToast(`📵 Bus ${bus.ppu} registrado como SIN SEÑAL WiFi`, "warning");
+        
+    } catch (error) {
+        console.error("Error durante el registro sin WiFi:", error);
+        dom.form.observacion.value += `Error en registro: ${error.message}\n`;
+        showToast("Error al registrar bus sin señal WiFi", "error");
+    } finally {
+        loadingEl.classList.add('hidden');
+        statusEl.classList.remove('hidden');
+    }
+}
+
+function completeNoWifiVerification(bus) {
+    const loadingEl = dom.verificationSection.loading;
+    const statusEl = dom.verificationSection.status;
+    
+    // Usar ubicación real del dispositivo donde se está revisando
+    const deviceLocation = state.userLocation ? 
+        `${state.userLocation.lat.toFixed(6)}, ${state.userLocation.lon.toFixed(6)}` : 
+        'Ubicación no disponible';
+    
+    let obsText = `--- INICIO REPORTE TÉCNICO DE CONECTIVIDAD ---\n`;
+    obsText += `Fecha: ${new Date().toLocaleString('es-CL')}\n`;
+    obsText += `PPU Objetivo: ${bus.ppu}\n`;
+    obsText += `Terminal: ${bus.terminal || 'No asignado'}\n`;
+    obsText += `Ubicación de Revisión: ${deviceLocation}\n`;
+    obsText += `Precisión GPS: ±${state.userLocation?.accuracy.toFixed(1) || 'N/A'}m\n`;
+    obsText += `Tipo de Registro: REGISTRO SIN SEÑAL WiFi\n\n`;
+    
+    obsText += `❌ ESTADO: SIN SEÑAL WiFi DETECTADA\n`;
+    obsText += `  - El bus no emite ninguna señal WiFi\n`;
+    obsText += `  - No se detectó red con formato "Red-${bus.ppu.toLowerCase()}"\n`;
+    obsText += `  - Verificación visual confirmada por inspector\n\n`;
+    
+    obsText += `DIAGNÓSTICO:\n`;
+    obsText += `  - Router WiFi completamente apagado o sin alimentación\n`;
+    obsText += `  - Equipo WiFi no instalado o dañado\n`;
+    obsText += `  - Falta de configuración inicial del equipo\n`;
+    obsText += `  - Bus fuera de servicio o en mantenimiento\n\n`;
+    
+    obsText += `ACCIONES REQUERIDAS:\n`;
+    obsText += `  1. Verificar alimentación eléctrica del router\n`;
+    obsText += `  2. Revisar instalación física del equipo WiFi\n`;
+    obsText += `  3. Verificar configuración del SSID\n`;
+    obsText += `  4. Contactar equipo técnico si es necesario\n\n`;
+    
+    obsText += `Inspector: ${getCurrentUser()}\n`;
+    obsText += `Timestamp: ${new Date().toISOString()}\n`;
+    obsText += `--- FIN REPORTE TÉCNICO ---\n\n`;
+    
+    // Agregar al campo de observación
+    dom.form.observacion.value = obsText;
+    
+    // Marcar como sin conectividad
+    document.querySelector('input[name="conectividad"][value="No"]').checked = true;
+    
+    // Actualizar información del formulario
+    updateFormStatus('No');
+    
+    // Actualizar información de verificación
+    const verificationInfo = {
+        lastConnection: 'Sin señal WiFi detectada',
+        connectionClass: 'text-danger',
+        signalClass: 'signal-none',
+        verificationCount: (getLastVerificationInfo(bus).verificationCount + 1),
+        qualityPercentage: 0
+    };
+    
+    dom.form.lastConnection.textContent = verificationInfo.lastConnection;
+    dom.form.lastConnection.className = `font-semibold ${verificationInfo.connectionClass}`;
+    dom.form.signalQuality.className = `signal-strength-indicator ${verificationInfo.signalClass}`;
+    dom.form.verificationCount.textContent = verificationInfo.verificationCount;
+    dom.form.qualityIndicator.style.left = `${verificationInfo.qualityPercentage}%`;
+    
+    // Ocultar loading y mostrar status
+    loadingEl.classList.add('hidden');
+    statusEl.classList.remove('hidden');
+    
+    dom.verificationSection.scanningText.textContent = "✅ Registro de bus sin señal WiFi completado";
+}
+
 // --- EVENT HANDLERS & LOGIC ---
 async function handleFormSubmit(e) {
     e.preventDefault();
@@ -5839,6 +5953,7 @@ async function init() {
 dom.refreshMapsBtn.addEventListener('click', refreshMaps);
     dom.syncBtn.addEventListener('click', syncLocalData);
     dom.verifyConnectionBtn.addEventListener('click', handleVerifyConnection);
+dom.noWifiSignalBtn.addEventListener('click', handleNoWifiSignal);
     dom.centerMapBtn.addEventListener('click', () => {
         if (state.userLocation && state.maps.full) {
             state.maps.full.setView([state.userLocation.lat, state.userLocation.lon], 12);
