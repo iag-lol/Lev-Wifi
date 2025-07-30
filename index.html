@@ -5146,11 +5146,11 @@ async function scanWiFiNetworks(bus) {
         state.scanInProgress = true;
         dom.verificationSection.scanningText.textContent = "Iniciando escaneo de redes WiFi y pruebas de conectividad...";
         
-        // El SSID esperado debe ser exactamente "Red-PATENTE" donde PATENTE es el PPU del bus
-        const expectedSsid = `Red-${bus.ppu}`;
+        // El SSID esperado debe ser exactamente "Red-ppu" donde ppu está en minúsculas
+        const expectedSsid = `Red-${bus.ppu.toLowerCase()}`;
         const expectedSsids = [expectedSsid]; // Solo validamos el formato correcto
         
-        dom.verificationSection.scanningText.textContent += `\nBuscando redes WiFi para bus ${bus.ppu}...`;
+        dom.verificationSection.scanningText.textContent += `\nBuscando red WiFi: "${expectedSsid}" para bus ${bus.ppu}...`;
         
         // Realizar pruebas de conectividad simulada (ya que getAvailableNetworks puede no estar disponible)
         const networkScanResult = await getAvailableNetworks().catch(() => ({
@@ -5166,20 +5166,29 @@ async function scanWiFiNetworks(bus) {
         let isExpectedNetwork = false;
         let matchedSsid = '';
         
-        if (connectedNetwork) {
-            // Verificación EXACTA del SSID - debe ser exactamente "Red-PATENTE"
-            const currentSsid = connectedNetwork.ssid.trim();
+        // Los navegadores no pueden acceder al SSID real por seguridad
+        // Vamos a asumir que el usuario está conectado correctamente si hay conexión WiFi
+        if (connectedNetwork && connectedNetwork.connected) {
+            dom.verificationSection.scanningText.textContent += `\n🔍 Conexión WiFi detectada`;
+            dom.verificationSection.scanningText.textContent += `\n🎯 Red esperada: "${expectedSsid}"`;
+            dom.verificationSection.scanningText.textContent += `\n⚠️ IMPORTANTE: Verifique manualmente que está conectado a "${expectedSsid}"`;
             
-            if (currentSsid === expectedSsid) {
+            // Mostrar confirmación al usuario
+            const userConfirmation = confirm(`¿Está conectado exactamente a la red "${expectedSsid}"?`);
+            
+            if (userConfirmation) {
                 isExpectedNetwork = true;
                 matchedSsid = expectedSsid;
-                dom.verificationSection.scanningText.textContent += `\n✅ Conectado a la red correcta: ${currentSsid}`;
+                dom.verificationSection.scanningText.textContent += `\n✅ Usuario confirmó conexión a "${expectedSsid}"`;
             } else {
                 isExpectedNetwork = false;
-                dom.verificationSection.scanningText.textContent += `\n❌ Red incorrecta. Conectado a: "${currentSsid}", se esperaba: "${expectedSsid}"`;
+                dom.verificationSection.scanningText.textContent += `\n❌ Usuario NO confirmó la conexión correcta`;
+                dom.verificationSection.scanningText.textContent += `\n💡 Conéctese a "${expectedSsid}" y vuelva a intentar`;
             }
         } else {
-            dom.verificationSection.scanningText.textContent += `\n❌ No hay conexión WiFi activa`;
+            dom.verificationSection.scanningText.textContent += `\n❌ No se detectó conexión WiFi activa`;
+            dom.verificationSection.scanningText.textContent += `\n💡 Conéctese a: "${expectedSsid}" y vuelva a intentar`;
+            isExpectedNetwork = false;
         }
         
         // Analizar todas las redes disponibles
