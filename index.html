@@ -2289,6 +2289,11 @@
                         <span class="hidden md:inline">Sincronizar</span>
                         <span class="md:hidden">Sync</span>
                     </button>
+                    <button id="refresh-maps-btn" class="btn btn-outline text-info text-xs md:text-sm" title="Refrescar mapas">
+                        <i class="fas fa-map-marked-alt mr-1.5"></i>
+                        <span class="hidden md:inline">Refrescar Mapas</span>
+                        <span class="md:hidden">Mapas</span>
+                    </button>
                     <button id="download-excel-btn" class="btn btn-secondary text-xs md:text-sm">
                         <i class="fas fa-file-excel mr-1.5"></i>
                         <span class="hidden md:inline">Exportar Excel</span>
@@ -3026,6 +3031,7 @@ const dom = {
     busForm: document.getElementById('bus-details-form'),
     toastEl: document.getElementById('toast'),
     downloadBtn: document.getElementById('download-excel-btn'),
+    refreshMapsBtn: document.getElementById('refresh-maps-btn'),
     syncBtn: document.getElementById('sync-btn'),
     geoStatusText: document.getElementById('geo-status-text'),
     verifyConnectionBtn: document.getElementById('verify-connection-btn'),
@@ -3882,27 +3888,56 @@ function createChipStatusChart() {
 
 // --- MAP FUNCTIONS ---
 function initializeMaps() {
-    // Initialize dashboard mini map
-    state.maps.dashboard = L.map('map-container', {
-        zoomControl: false,
-        attributionControl: false,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false
-    }).setView([-33.4500, -70.6500], 10);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(state.maps.dashboard);
-    
-    // Initialize full map view
-    state.maps.full = L.map('full-map-container').setView([-33.4500, -70.6500], 11);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(state.maps.full);
+    try {
+        // Initialize dashboard mini map
+        const dashboardContainer = document.getElementById('map-container');
+        if (dashboardContainer) {
+            // Clear any existing map instance
+            if (state.maps.dashboard) {
+                state.maps.dashboard.remove();
+            }
+            
+            state.maps.dashboard = L.map('map-container', {
+                zoomControl: false,
+                attributionControl: false,
+                dragging: false,
+                scrollWheelZoom: false,
+                doubleClickZoom: false
+            }).setView([-33.4500, -70.6500], 10);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(state.maps.dashboard);
+            
+            console.log('✅ Mapa del dashboard inicializado correctamente');
+        } else {
+            console.warn('⚠️ Contenedor del mapa del dashboard no encontrado');
+        }
+        
+        // Initialize full map view
+        const fullMapContainer = document.getElementById('full-map-container');
+        if (fullMapContainer) {
+            // Clear any existing map instance
+            if (state.maps.full) {
+                state.maps.full.remove();
+            }
+            
+            state.maps.full = L.map('full-map-container').setView([-33.4500, -70.6500], 11);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(state.maps.full);
+            
+            console.log('✅ Mapa completo inicializado correctamente');
+        } else {
+            console.warn('⚠️ Contenedor del mapa completo no encontrado');
+        }
+    } catch (error) {
+        console.error('❌ Error inicializando mapas:', error);
+        return;
+    }
     
     // Clear any existing markers first
     clearAllMapMarkers();
@@ -3923,6 +3958,39 @@ function initializeMaps() {
         if (state.maps.dashboard) state.maps.dashboard.invalidateSize();
         if (state.maps.full) state.maps.full.invalidateSize();
     });
+    
+    console.log('✅ Mapas inicializados correctamente');
+}
+
+// Función para forzar actualización de mapas
+function refreshMaps() {
+    console.log('🔄 Refrescando mapas...');
+    
+    // Refresh dashboard map
+    if (state.maps.dashboard) {
+        try {
+            state.maps.dashboard.invalidateSize();
+            console.log('✅ Mapa dashboard refrescado');
+        } catch (error) {
+            console.warn('⚠️ Error refrescando mapa dashboard:', error);
+        }
+    }
+    
+    // Refresh full map
+    if (state.maps.full) {
+        try {
+            state.maps.full.invalidateSize();
+            console.log('✅ Mapa completo refrescado');
+        } catch (error) {
+            console.warn('⚠️ Error refrescando mapa completo:', error);
+        }
+    }
+    
+    // Re-add markers
+    setTimeout(() => {
+        addBusMarkers();
+        addTerminalMarkers();
+    }, 200);
 }
 
 function addTerminalMarkers() {
@@ -3987,9 +4055,14 @@ function addBusMarkers() {
     });
     state.maps.markers.buses = [];
     
-    // Only add markers for buses that are at terminals with valid coordinates
+    // Only add markers for buses that have been verified and are at terminals with valid coordinates
     state.fleetData.forEach(bus => {
-        if (bus.terminal && TERMINALS[bus.terminal]) {
+        // Solo mostrar buses que han sido verificados (tienen observación con reporte técnico)
+        const hasBeenVerified = bus.observacion && 
+                               bus.observacion.includes('REPORTE TÉCNICO') && 
+                               bus.observacion.length > 50; // Asegurar que tiene contenido real
+        
+        if (hasBeenVerified && bus.terminal && TERMINALS[bus.terminal]) {
             const terminal = TERMINALS[bus.terminal];
             const statusColor = bus.conectividad === 'Si' ? 'primary' : 'gray-500';
             
@@ -4011,17 +4084,34 @@ function addBusMarkers() {
             const latOffset = (Math.random() - 0.5) * 0.0005;
             const lonOffset = (Math.random() - 0.5) * 0.0005;
             
-            // Add to dashboard map
-            const dashboardMarker = L.marker([terminal.lat + latOffset, terminal.lon + lonOffset], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+            // Add to dashboard map (with safety check)
+            let dashboardMarker = null;
+            if (state.maps.dashboard) {
+                try {
+                    dashboardMarker = L.marker([terminal.lat + latOffset, terminal.lon + lonOffset], { icon: dashboardIcon }).addTo(state.maps.dashboard);
+                } catch (error) {
+                    console.warn('Error agregando marcador al dashboard:', error);
+                }
+            }
             
-            // Add to full map with interaction
-            const fullMarker = L.marker([terminal.lat + latOffset, terminal.lon + lonOffset], { icon: fullMapIcon }).addTo(state.maps.full);
-            fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
-            fullMarker.on('click', () => {
-                // Select bus and switch to management view
-                selectBus(bus.id);
-                switchView('management');
-            });
+            // Add to full map with interaction (with safety check)
+            let fullMarker = null;
+            if (state.maps.full) {
+                try {
+                    fullMarker = L.marker([terminal.lat + latOffset, terminal.lon + lonOffset], { icon: fullMapIcon }).addTo(state.maps.full);
+                } catch (error) {
+                    console.warn('Error agregando marcador al mapa completo:', error);
+                }
+            }
+            // Add tooltip and click event only if marker was created successfully
+            if (fullMarker) {
+                fullMarker.bindTooltip(`${bus.ppu} (${bus.terminal})`);
+                fullMarker.on('click', () => {
+                    // Select bus and switch to management view
+                    selectBus(bus.id);
+                    switchView('management');
+                });
+            }
             
             // Store markers
             state.maps.markers.buses.push({
@@ -4225,6 +4315,13 @@ function switchView(viewName) {
     
     if (viewName === 'dashboard') {
         updateDashboard();
+        // Refresh dashboard map size after it becomes visible
+        setTimeout(() => {
+            if (state.maps.dashboard) {
+                state.maps.dashboard.invalidateSize();
+                console.log('🗺️ Mapa del dashboard refrescado');
+            }
+        }, 100);
     } else if (viewName === 'reports') {
         updateReports();
     } else if (viewName === 'map') {
@@ -5739,6 +5836,7 @@ async function init() {
     dom.busForm.addEventListener('submit', handleFormSubmit);
     dom.form.cancelBtn.addEventListener('click', resetFormView);
     dom.downloadBtn.addEventListener('click', exportToExcel);
+dom.refreshMapsBtn.addEventListener('click', refreshMaps);
     dom.syncBtn.addEventListener('click', syncLocalData);
     dom.verifyConnectionBtn.addEventListener('click', handleVerifyConnection);
     dom.centerMapBtn.addEventListener('click', () => {
