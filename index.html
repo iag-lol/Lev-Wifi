@@ -3134,7 +3134,7 @@ async function fetchBuses() {
         // Process data for consistency
         return data.map(bus => ({
             ...bus,
-            chipInstalado: bus.chipInstalado || 'No',
+            chipInstalado: bus.chipInstalado || 'Si',
             conectividad: bus.conectividad || 'No',
             observacion: bus.observacion || '',
             terminal: bus.terminal || '',
@@ -3148,33 +3148,15 @@ async function fetchBuses() {
 }
 
 async function fetchConnectivityHistory() {
-    // Esta función obtendría datos históricos de conectividad desde una tabla separada
-    // o generaría un resumen a partir de logs almacenados
+    // Esta función genera datos históricos desde la tabla principal
+    // ya que no existe tabla de historial separada
     try {
-        // Ejemplo: Consulta a una tabla de historial de conectividad
-        // En un caso real, esta tabla debería existir y contener registros históricos
-        const { data, error } = await supabaseClient
-            .from('conectividad_history')
-            .select('*')
-            .order('fecha', { ascending: false })
-            .limit(50);
-            
-        if (error) {
-            // Si la tabla no existe o hay otro error, crear datos básicos desde la tabla principal
-            console.warn('Historial no disponible, generando desde datos actuales');
-            await generateHistoryFromCurrentData();
-            return;
-        }
-        
-        if (data && data.length > 0) {
-            // Procesar datos históricos y almacenarlos en state
-            processHistoricalData(data);
-        } else {
-            await generateHistoryFromCurrentData();
-        }
-    } catch (e) {
-        console.warn('Error al obtener historial, generando desde datos actuales:', e);
+        console.info('Generando historial desde datos actuales de la tabla principal');
         await generateHistoryFromCurrentData();
+        return;
+    } catch (e) {
+        console.warn('Error al generar historial desde datos actuales:', e);
+        // Continuar sin historial si hay error
     }
 }
 
@@ -3184,8 +3166,8 @@ async function generateHistoryFromCurrentData() {
     // Obtener datos de verificaciones pasadas desde las observaciones
     const { data, error } = await supabaseClient
         .from(TABLE_NAME)
-        .select('id, ppu, conectividad, observacion, updated_at')
-        .order('updated_at', { ascending: false });
+        .select('id,ppu,conectividad,observacion,created_at')
+        .order('created_at', { ascending: false });
         
     if (error || !data) {
         console.error('No se pudieron generar datos históricos:', error);
@@ -3202,7 +3184,7 @@ async function generateHistoryFromCurrentData() {
         
         // Agregar estado actual
         history[bus.id].push({
-            date: bus.updated_at || new Date().toISOString(),
+            date: bus.created_at || new Date().toISOString(),
             status: bus.conectividad === 'Si'
         });
         
@@ -3267,8 +3249,7 @@ async function updateBus(busData) {
         if (updateData[key] === undefined) delete updateData[key];
     });
     
-    // Agregar timestamp de actualización
-    updateData.updated_at = new Date().toISOString();
+    // El timestamp de actualización se maneja automáticamente por Supabase
     
     try {
         const { error } = await supabaseClient
@@ -3293,7 +3274,7 @@ async function updateBus(busData) {
             }
         }
         
-        showToast('Datos guardados exitosamente', 'success');
+        showToast('✅ Registro exitoso - Datos guardados correctamente', 'success');
         return true;
     } catch (error) {
         console.error('Error de conexión:', error);
@@ -5165,22 +5146,18 @@ async function scanWiFiNetworks(bus) {
         state.scanInProgress = true;
         dom.verificationSection.scanningText.textContent = "Iniciando escaneo de redes WiFi y pruebas de conectividad...";
         
-        // El SSID esperado debe seguir un formato coherente basado en el PPU del bus
-        // Normalizar el PPU para formato de SSID
-        const ppu = bus.ppu.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const expectedSsids = [
-            `wifi-bus-${ppu}`,
-            `bus-${ppu}`,
-            `bus_${ppu}`,
-            `movil-${ppu}`,
-            `red-${ppu}`,
-            `transantiago-${ppu}`
-        ];
+        // El SSID esperado debe ser exactamente "Red-ppu" donde ppu está en minúsculas
+        const expectedSsid = `Red-${bus.ppu.toLowerCase()}`;
+        const expectedSsids = [expectedSsid]; // Solo validamos el formato correcto
         
-        dom.verificationSection.scanningText.textContent += `\nBuscando redes WiFi para bus ${bus.ppu}...`;
+        dom.verificationSection.scanningText.textContent += `\nBuscando red WiFi: "${expectedSsid}" para bus ${bus.ppu}...`;
         
-        // Realizar pruebas de conectividad para determinar estado de la red
-        const networkScanResult = await getAvailableNetworks();
+        // Realizar pruebas de conectividad simulada (ya que getAvailableNetworks puede no estar disponible)
+        const networkScanResult = await getAvailableNetworks().catch(() => ({
+            networks: [],
+            currentNetwork: null,
+            error: 'API no disponible, usando simulación'
+        }));
         
         // Verificar si hay una red actual conectada
         const connectedNetwork = networkScanResult.currentNetwork;
@@ -5189,21 +5166,29 @@ async function scanWiFiNetworks(bus) {
         let isExpectedNetwork = false;
         let matchedSsid = '';
         
-        if (connectedNetwork) {
-            // Extraer solo letras y números para comparación flexible
-            const normalizedCurrentSsid = connectedNetwork.ssid.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Los navegadores no pueden acceder al SSID real por seguridad
+        // Vamos a asumir que el usuario está conectado correctamente si hay conexión WiFi
+        if (connectedNetwork && connectedNetwork.connected) {
+            dom.verificationSection.scanningText.textContent += `\n🔍 Conexión WiFi detectada`;
+            dom.verificationSection.scanningText.textContent += `\n🎯 Red esperada: "${expectedSsid}"`;
+            dom.verificationSection.scanningText.textContent += `\n⚠️ IMPORTANTE: Verifique manualmente que está conectado a "${expectedSsid}"`;
             
-            for (const expectedSsid of expectedSsids) {
-                const normalizedExpectedSsid = expectedSsid.toLowerCase().replace(/[^a-z0-9]/g, '');
-                
-                // Verificar si la red actual contiene el patrón esperado
-                if (normalizedCurrentSsid.includes(normalizedExpectedSsid) || 
-                    normalizedCurrentSsid.includes(ppu)) {
-                    isExpectedNetwork = true;
-                    matchedSsid = expectedSsid;
-                    break;
-                }
+            // Mostrar confirmación al usuario
+            const userConfirmation = confirm(`¿Está conectado exactamente a la red "${expectedSsid}"?`);
+            
+            if (userConfirmation) {
+                isExpectedNetwork = true;
+                matchedSsid = expectedSsid;
+                dom.verificationSection.scanningText.textContent += `\n✅ Usuario confirmó conexión a "${expectedSsid}"`;
+            } else {
+                isExpectedNetwork = false;
+                dom.verificationSection.scanningText.textContent += `\n❌ Usuario NO confirmó la conexión correcta`;
+                dom.verificationSection.scanningText.textContent += `\n💡 Conéctese a "${expectedSsid}" y vuelva a intentar`;
             }
+        } else {
+            dom.verificationSection.scanningText.textContent += `\n❌ No se detectó conexión WiFi activa`;
+            dom.verificationSection.scanningText.textContent += `\n💡 Conéctese a: "${expectedSsid}" y vuelva a intentar`;
+            isExpectedNetwork = false;
         }
         
         // Analizar todas las redes disponibles
@@ -5226,10 +5211,11 @@ async function scanWiFiNetworks(bus) {
         
         // Construir objeto de respuesta
         const scanResult = {
-            targetSSID: matchedSsid || `wifi-bus-${ppu}`, // SSID esperado
+            targetSSID: expectedSsid, // SSID esperado en formato "Red-PATENTE"
             networks: availableNetworks,
             targetFound: isExpectedNetwork ? connectedNetwork : null,
             internetStatus: networkScanResult.connectivityStatus,
+            isCorrectNetwork: isExpectedNetwork, // Nuevo campo para validación estricta
             timestamp: new Date().toISOString()
         };
         
@@ -5241,9 +5227,10 @@ async function scanWiFiNetworks(bus) {
         
         // Devolver un objeto de resultado básico en caso de error
         return {
-            targetSSID: `wifi-bus-${bus.ppu.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            targetSSID: expectedSsid, // SSID esperado en formato "Red-PATENTE"
             networks: [],
             targetFound: null,
+            isCorrectNetwork: false,
             error: error.message,
             timestamp: new Date().toISOString()
         };
@@ -5365,10 +5352,8 @@ async function handleVerifyConnection() {
         return;
     }
 
-    // Verificar GPS y cercanía a terminal
-    const canVerifyWiFi = state.nearestTerminal && 
-                          state.distanceToTerminal <= VERIFICATION_RADIUS_METERS && 
-                          (state.userLocation?.accuracy || 100) <= 50;
+    // Permitir verificación siempre, sin restricciones de ubicación
+    const canVerifyWiFi = true; // Simplificado para permitir verificación en cualquier lugar
 
     const loadingEl = dom.verificationSection.loading;
     const statusEl = dom.verificationSection.status;
@@ -5385,14 +5370,15 @@ async function handleVerifyConnection() {
         const scanResult = await scanWiFiNetworks(bus);
         const internetStatus = scanResult?.internetStatus || await checkInternetConnectivity();
         
-        if (canVerifyWiFi) {
-            dom.verificationSection.scanningText.textContent += "\nRealizando pruebas de conectividad a internet...";
-            completeVerification(bus, true, scanResult, internetStatus);
-        } else {
-            // Si no estamos cerca de un terminal, hacer verificación simplificada
-            dom.verificationSection.scanningText.textContent += "\nFuera del radio de terminal, realizando verificación básica...";
-            completeVerification(bus, false, scanResult, internetStatus);
+        // Verificar si estamos conectados a la red correcta ANTES de continuar
+        if (!scanResult.isCorrectNetwork) {
+            dom.verificationSection.scanningText.textContent += `\n⚠️ ADVERTENCIA: No está conectado a la red "${scanResult.targetSSID}"`;
+            showToast(`❌ Debe conectarse a la red "${scanResult.targetSSID}" para verificar este bus`, "error");
         }
+        
+        // Realizar verificación completa siempre
+        dom.verificationSection.scanningText.textContent += "\nRealizando pruebas de conectividad...";
+        completeVerification(bus, true, scanResult, internetStatus);
     } catch (error) {
         console.error("Error durante la verificación:", error);
         dom.form.observacion.value += `Error en verificación: ${error.message}\n`;
@@ -5477,28 +5463,28 @@ function completeVerification(bus, withWiFiScan = true, scanResult = null, inter
                 document.querySelector('input[name="conectividad"][value="No"]').checked = true;
             }
         } else {
-            // No se encontró la red del bus
+            // No se encontró la red específica del bus - FALLO DE VERIFICACIÓN
             isConnected = false;
+            hasInternet = false;
             
-            obsText += `❌ ESTADO: FALLO DE CONEXIÓN WiFi\n`;
-            obsText += `  - SSID Objetivo no encontrado: ${targetSSID}\n`;
+            obsText += `❌ ESTADO: FALLO DE VERIFICACIÓN\n`;
+            obsText += `  - NO CONECTADO a la red del bus\n`;
+            obsText += `  - SSID requerido: ${targetSSID}\n`;
+            obsText += `  - Para verificar este bus debe conectarse exactamente a: "${targetSSID}"\n`;
             
             // Listar redes disponibles si hay
             if (networks.length > 0) {
-                obsText += `  - Redes disponibles:\n`;
+                obsText += `  - Redes detectadas en el área:\n`;
                 networks.forEach(net => {
                     obsText += `    * ${net.ssid} (${net.signal} dBm, ${net.security || 'N/A'})\n`;
                 });
-            } else {
-                obsText += `  - No se detectaron redes WiFi cercanas\n`;
             }
             
-            obsText += `  - Posibles causas:\n`;
-            obsText += `    * Router WiFi del bus apagado o sin alimentación\n`;
-            obsText += `    * Configuración incorrecta del SSID\n`;
-            obsText += `    * Interferencia de señal\n`;
-            obsText += `    * Distancia excesiva al punto de acceso\n`;
-            obsText += `    * Bus fuera de servicio\n`;
+            obsText += `\n  ⚠️  INSTRUCCIONES:\n`;
+            obsText += `  1. Conéctese al WiFi "${targetSSID}"\n`;
+            obsText += `  2. Espere a que la conexión se establezca\n`;
+            obsText += `  3. Vuelva a hacer la verificación\n`;
+            obsText += `  - Estado: REQUIERE CONEXIÓN CORRECTA\n`;
             
             // Actualizar estado del bus a Offline
             document.querySelector('input[name="conectividad"][value="No"]').checked = true;
@@ -5581,13 +5567,15 @@ function completeVerification(bus, withWiFiScan = true, scanResult = null, inter
     dom.form.verificationCount.textContent = verificationInfo.verificationCount;
     dom.form.qualityIndicator.style.left = `${verificationInfo.qualityPercentage}%`;
     
-    // Mostrar toast con resultado
-    if (isConnected && hasInternet) {
-        showToast("✅ Verificación completada: Conexión WiFi y Internet OK", "success");
+    // Mostrar toast con resultado específico
+    if (withWiFiScan && scanResult && !scanResult.isCorrectNetwork) {
+        showToast(`❌ Debe conectarse a la red "${scanResult.targetSSID}" para verificar este bus`, "error");
+    } else if (isConnected && hasInternet) {
+        showToast(`✅ Verificación exitosa: Conectado a "${scanResult?.targetSSID || 'red correcta'}"`, "success");
     } else if (isConnected) {
-        showToast("⚠️ Verificación completada: WiFi conectado pero sin internet", "warning");
+        showToast("⚠️ WiFi conectado pero sin acceso a internet", "warning");
     } else {
-        showToast("❌ Verificación completada: Sin conexión WiFi", "error");
+        showToast("❌ Sin conexión a la red del bus", "error");
     }
 }
 
